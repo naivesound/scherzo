@@ -38,7 +38,7 @@ extern "C" {
 #define SCHERZO_BPM_MAX_TAPS 8
 #define SCHERZO_BPM_MAX_IDLE (3 / 2)
 
-static char *SCHERZO_SF2DIR = "./sf2";
+#define SCHERZO_SF2DIR "./sf2"
 
 enum schero_looper_state {
   SCHERZO_LOOPER_STATE_CLEAR,
@@ -80,6 +80,9 @@ typedef struct scherzo {
   } fluid;
 } scherzo_t;
 
+static int scherzo_load_instrument(scherzo_t *scherzo, int index);
+static void scherzo_destroy(scherzo_t *scherzo);
+
 static int scherzo_create(scherzo_t *scherzo, int sample_rate,
 			  int max_polyphony, metronome_fn_t metronome) {
   scherzo->sample_rate = sample_rate;
@@ -98,13 +101,21 @@ static int scherzo_create(scherzo_t *scherzo, int sample_rate,
   scherzo->looper.decay = 0;
   scherzo->looper.volume = 1;
 
-  scherzo->fluid.settings = new_fluid_settings();
-  fluid_settings_setnum(scherzo->fluid.settings, "synth.sample-rate",
-			sample_rate);
-  fluid_settings_setint(scherzo->fluid.settings, "synth.polyphony",
-			max_polyphony);
-  scherzo->fluid.synth = new_fluid_synth(scherzo->fluid.settings);
   scherzo->fluid.font = -1;
+  scherzo->fluid.settings = new_fluid_settings();
+  if (scherzo->fluid.settings == NULL) {
+    return -1;
+  }
+  char name_sample_rate[] = "synth.sample-rate";
+  char name_polyphony[] = "synth.polyphony";
+  fluid_settings_setnum(scherzo->fluid.settings, name_sample_rate, sample_rate);
+  fluid_settings_setint(scherzo->fluid.settings, name_polyphony, max_polyphony);
+  scherzo->fluid.synth = new_fluid_synth(scherzo->fluid.settings);
+  if (scherzo->fluid.synth == NULL) {
+    scherzo_destroy(scherzo);
+    return -1;
+  }
+  return 0;
 }
 
 static int scherzo_load_instrument(scherzo_t *scherzo, int index) {
@@ -134,7 +145,7 @@ static int scherzo_load_instrument(scherzo_t *scherzo, int index) {
   return scherzo->fluid.font;
 }
 
-static int scherzo_destroy(scherzo_t *scherzo) {
+static void scherzo_destroy(scherzo_t *scherzo) {
   scherzo_load_instrument(scherzo, -1);
   if (scherzo->fluid.synth != NULL) {
     delete_fluid_synth(scherzo->fluid.synth);
@@ -302,7 +313,7 @@ static int scherzo_midi(scherzo_t *scherzo, int msg, int a, int b) {
   return -1;
 }
 
-static int scherzo_write_stereo(scherzo_t *scherzo, int16_t *buf, int frames) {
+static void scherzo_write_stereo(scherzo_t *scherzo, int16_t *buf, int frames) {
   /* Instrument */
   if (scherzo->fluid.synth != NULL) {
     fluid_synth_write_s16(scherzo->fluid.synth, frames, buf, 0, 2, buf, 1, 2);

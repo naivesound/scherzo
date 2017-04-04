@@ -5,8 +5,6 @@
 
 #include <vector>
 
-//#include "synth.h"
-
 #include "m.h"
 
 #include "scherzo.h"
@@ -27,22 +25,6 @@ static int getch() {
   tcsetattr(STDIN_FILENO, TCSANOW, &oldattr);
   return ch;
 }
-
-// void handleMIDI(scherzo::Synth &synth, unsigned char cmd, unsigned char a,
-// unsigned char b) {
-// int chan = cmd & 0xf;
-// cmd = cmd >> 4;
-// if (cmd == 0x9 && b > 0) {
-// synth.noteOn(chan, a, b);
-//} else if ((cmd == 0x9 && b == 0) || cmd == 0x8) {
-// synth.noteOff(chan, a);
-//} else if (cmd == 0xe) {
-// int bend = ((b & 0x7f) << 7) | (a & 0x7f);
-// synth.pitchBend(chan, bend);
-//} else if (cmd == 0xb) {
-// synth.cc(chan, a, b);
-//}
-//}
 
 int audioCallback(void *out, void *in, unsigned int frames, double time,
 		  RtAudioStreamStatus status, void *arg) {
