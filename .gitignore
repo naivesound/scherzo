@@ -21,12 +21,8 @@
 *.dylib
 
 # Executables
-*.exe
-*.out
-*.app
-*.i*86
-*.x86_64
-*.hex
+scherzo
+scherzo.exe
 
 # Debug files
 *.dSYM/
