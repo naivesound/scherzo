@@ -1094,7 +1094,8 @@ static int16_t s16le(unsigned char hi, unsigned char lo) {
 }
 
 static int16_t metronome_acoustic(int sample_rate, int frame) {
-    (void)sample_rate;
+    float a = frame * 44100.f / sample_rate;
+    frame = (int)a;
     if (frame < 0 || (unsigned int)frame >= m44100_raw_len / 2) {
         return 0;
     }
