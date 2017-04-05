@@ -97,3 +97,14 @@ Java_com_naivesound_scherzo_Scherzo_midi__JIII(JNIEnv *env, jobject instance, jl
     }
     scherzo_midi(&context->scherzo, msg, a, b);
 }
+
+JNIEXPORT void JNICALL
+Java_com_naivesound_scherzo_Scherzo_looperCommand__JZ(JNIEnv *env, jobject instance, jlong ref,
+                                                      jboolean primary) {
+
+    struct scherzo_context *context = (struct scherzo_context *)ref;
+    if (context == NULL) {
+        return;
+    }
+    scherzo_looper(&context->scherzo, primary ? 0 : 1);
+}
