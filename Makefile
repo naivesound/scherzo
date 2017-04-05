@@ -1,14 +1,34 @@
-CFLAGS += -Wall -Wextra -pedantic
-CXXFLAGS += -std=c++0x -Wall -Wextra -pedantic
+VERSION = 0.0.0
+
+SCHERZO_BIN ?= scherzo
+
+CPPFLAGS = -DVERSION=\"${VERSION}\"
+CFLAGS += -Wall -Wextra -pedantic -std=c99
+CXXFLAGS += -Wall -Wextra -pedantic -std=c++0x
+
+ifeq ($(alsa),1)
+	CXXFLAGS += -D__LINUX_ALSA__
+	LDFLAGS += -lasound -pthread
+endif
+ifeq ($(pulse),1)
+	CXXFLAGS += -D__LINUX_PULSE__
+	LDFLAGS += -lpulse -lpulse-simple -pthread
+endif
+ifeq ($(jack),1)
+	CXXFLAGS += -D__UNIX_JACK__
+	LDFLAGS += -ljack -pthread
+endif
+
+ifeq ($(macos),1)
+	CXXFLAGS += -D__MACOSX_CORE__
+	LDFLAGS += -framework CoreAudio -framework CoreMIDI -framework CoreFoundation
+endif
+ifeq ($(windows),1)
+	CXXFLAGS += -D__WINDOWS_WASAPI__ -D__WINDOWS_MM__
+	LDFLAGS += -lole32 -lm -lksuser -lwinmm -lws2_32 -mwindows -static
+endif
 
 CXXFLAGS += -Isrc/vendor -Isrc/vendor/fluidsynth
-
-CXXFLAGS += -D__LINUX_ALSA__
-LDFLAGS += -lasound -pthread
-
-CFLAGS += -g
-CXXFLAGS += -g
-LDFLAGS += -g
 
 OBJS := src/main.o \
 	src/vendor/RtAudio.o src/vendor/RtMidi.o \
@@ -31,9 +51,9 @@ OBJS := src/main.o \
 	src/vendor/fluidsynth/fluid_tuning.o \
 	src/vendor/fluidsynth/fluid_voice.o \
 
-all: scherzo
+all: $(SCHERZO_BIN)
 	
-scherzo: $(OBJS)
+$(SCHERZO_BIN): $(OBJS)
 	$(CXX) $(OBJS) $(LDFLAGS) -o $@
 
 lint:
@@ -41,8 +61,14 @@ lint:
 
 src/main.o: src/scherzo.h src/m.h
 
+android: src/scherzo.h src/m.h
+	mkdir -p android/app/src/main/cpp/fluidsynth
+	cp $^ android/app/src/main/cpp
+	cp src/vendor/fluidsynth/*.[ch] android/app/src/main/cpp/fluidsynth
+	cd android && ./gradlew build
+
 clean:
 	rm -f $(OBJS)
-	rm -f scherzo
+	rm -f $(SCHERZO_BIN)
 
-.PHONY: all lint clean
+.PHONY: all android lint clean
