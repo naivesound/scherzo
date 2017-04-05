@@ -38,7 +38,11 @@ extern "C" {
 #define SCHERZO_BPM_MAX_TAPS 8
 #define SCHERZO_BPM_MAX_IDLE (3 / 2)
 
+#ifdef __ANDROID__
+#define SCHERZO_SF2DIR "/mnt/sdcard/sf2"
+#else
 #define SCHERZO_SF2DIR "./sf2"
+#endif
 
 enum schero_looper_state {
   SCHERZO_LOOPER_STATE_CLEAR,
