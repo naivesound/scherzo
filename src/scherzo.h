@@ -36,7 +36,7 @@ extern "C" {
 #define MIDI_CC_CHORUS 93
 
 #define SCHERZO_BPM_MAX_TAPS 8
-#define SCHERZO_BPM_MAX_IDLE (3 / 2)
+#define SCHERZO_BPM_MAX_IDLE_INTERVAL 2 /* seconds */
 
 #ifdef __ANDROID__
 #define SCHERZO_SF2DIR "/mnt/sdcard/sf2"
@@ -96,6 +96,7 @@ static int scherzo_create(scherzo_t *scherzo, int sample_rate,
   scherzo->metronome.frame = 0;
   scherzo->metronome.index = -1;
   scherzo->metronome.volume = 1;
+  memset(scherzo->metronome.taps, 0, sizeof(scherzo->metronome.taps));
 
   scherzo->looper.state = SCHERZO_LOOPER_STATE_CLEAR;
   scherzo->looper.pos = 0;
@@ -237,40 +238,40 @@ static void scherzo_looper(scherzo_t *scherzo, int mode) {
   }
 }
 
-static int scherzo_set_bpm(scherzo_t *scherzo, int bpm) {
-  if (bpm != 0) {
-    scherzo->metronome.bpm = bpm;
+static int scherzo_tap_bpm(scherzo_t *scherzo) {
+  int max_interval;
+  if (scherzo->metronome.bpm > 0) {
+    max_interval = scherzo->sample_rate * 2 * 60 / scherzo->metronome.bpm;
+  } else {
+    max_interval = scherzo->sample_rate * SCHERZO_BPM_MAX_IDLE_INTERVAL;
+  }
+
+  int last = scherzo->metronome.taps[scherzo->metronome.index];
+  if (last >= max_interval) {
+    scherzo->metronome.bpm = 0;
     scherzo->metronome.index = -1;
     for (int i = 0; i < SCHERZO_BPM_MAX_TAPS; i++) {
       scherzo->metronome.taps[i] = 0;
     }
-  } else if (bpm == 0) {
-    if (scherzo->metronome.taps[scherzo->metronome.index] >=
-	scherzo->sample_rate * SCHERZO_BPM_MAX_IDLE) {
-      scherzo->metronome.index = -1;
-      for (int i = 0; i < SCHERZO_BPM_MAX_TAPS; i++) {
-	scherzo->metronome.taps[i] = 0;
-      }
+  }
+  if (scherzo->metronome.index < SCHERZO_BPM_MAX_TAPS - 1) {
+    scherzo->metronome.index++;
+  } else {
+    scherzo->metronome.index = SCHERZO_BPM_MAX_TAPS - 1;
+    for (int i = 0; i < SCHERZO_BPM_MAX_TAPS - 1; i++) {
+      scherzo->metronome.taps[i] = scherzo->metronome.taps[i + 1];
     }
-    if (scherzo->metronome.index < SCHERZO_BPM_MAX_TAPS - 1) {
-      scherzo->metronome.index++;
-    } else {
-      scherzo->metronome.index = SCHERZO_BPM_MAX_TAPS - 1;
-      for (int i = 0; i < SCHERZO_BPM_MAX_TAPS - 1; i++) {
-	scherzo->metronome.taps[i] = scherzo->metronome.taps[i + 1];
-      }
-    }
+  }
 
-    scherzo->metronome.taps[scherzo->metronome.index] = 0;
+  scherzo->metronome.taps[scherzo->metronome.index] = 0;
 
-    int sum = 0;
-    for (int i = 0; i < SCHERZO_BPM_MAX_TAPS; i++) {
-      sum = sum + scherzo->metronome.taps[i];
-    }
-    if (scherzo->metronome.index > 1) {
-      int spb = sum / (scherzo->metronome.index);
-      scherzo->metronome.bpm = 60 * scherzo->sample_rate / spb;
-    }
+  int sum = 0;
+  for (int i = 0; i < scherzo->metronome.index; i++) {
+    sum = sum + scherzo->metronome.taps[i];
+  }
+  if (scherzo->metronome.index > 1) {
+    int spb = sum / (scherzo->metronome.index);
+    scherzo->metronome.bpm = 60 * scherzo->sample_rate / spb;
   }
   return scherzo->metronome.bpm;
 }

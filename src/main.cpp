@@ -107,10 +107,7 @@ int main(int argc, char *argv[]) {
       scherzo_set_gain(&scherzo, gain);
       break;
     case 'b':
-      scherzo_set_bpm(&scherzo, 0);
-      break;
-    case 'B':
-      scherzo_set_bpm(&scherzo, -1);
+      scherzo_tap_bpm(&scherzo);
       break;
     case 'n':
       scherzo_looper(&scherzo, 0);
