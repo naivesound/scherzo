@@ -336,8 +336,8 @@ void *fluid_timer_start(void *data) {
     delay = (count * timer->msec) - (fluid_curtime() - start);
     if (delay > 0) {
       struct timeval tv;
-      tv.tv_sec = delay % 1000;
-      tv.tv_usec = delay * 1000;
+      tv.tv_sec = delay / 1000;
+      tv.tv_usec = (delay % 1000) * 1000;
       select(0, NULL, NULL, NULL, &tv);
     }
 
