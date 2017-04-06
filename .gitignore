@@ -21,8 +21,8 @@
 *.dylib
 
 # Executables
-scherzo
-scherzo.exe
+/scherzo
+/scherzo.exe
 
 # Debug files
 *.dSYM/
