@@ -182,6 +182,17 @@ static int16_t scherzo_mix(int16_t a, int16_t b) {
   return (int16_t)(v * 0x7fff);
 }
 
+static void scherzo_merge_loop(scherzo_t *scherzo) {
+  for (int i = 0; i < scherzo->looper.frames; i++) {
+    scherzo->looper.loop[i * 2] = scherzo_mix(scherzo->looper.loop[i * 2],
+					      scherzo->looper.overdub[i * 2]);
+    scherzo->looper.loop[i * 2 + 1] = scherzo_mix(
+	scherzo->looper.loop[i * 2 + 1], scherzo->looper.overdub[i * 2 + 1]);
+    scherzo->looper.overdub[i * 2] = 0;
+    scherzo->looper.overdub[i * 2 + 1] = 0;
+  }
+}
+
 static void scherzo_looper(scherzo_t *scherzo, int mode) {
   switch (scherzo->looper.state) {
   case SCHERZO_LOOPER_STATE_CLEAR:
@@ -211,6 +222,7 @@ static void scherzo_looper(scherzo_t *scherzo, int mode) {
     break;
   case SCHERZO_LOOPER_STATE_RECORDING:
     if (mode == 0) {
+      scherzo_merge_loop(scherzo);
       scherzo->looper.state = SCHERZO_LOOPER_STATE_PLAYING;
     } else {
       scherzo->looper.state = SCHERZO_LOOPER_STATE_STOPPED;
@@ -219,16 +231,8 @@ static void scherzo_looper(scherzo_t *scherzo, int mode) {
     break;
   case SCHERZO_LOOPER_STATE_OVERDUBBING:
     if (mode == 0) {
+      scherzo_merge_loop(scherzo);
       scherzo->looper.state = SCHERZO_LOOPER_STATE_PLAYING;
-      for (int i = 0; i < scherzo->looper.frames; i++) {
-	scherzo->looper.loop[i * 2] = scherzo_mix(
-	    scherzo->looper.loop[i * 2], scherzo->looper.overdub[i * 2]);
-	scherzo->looper.loop[i * 2 + 1] =
-	    scherzo_mix(scherzo->looper.loop[i * 2 + 1],
-			scherzo->looper.overdub[i * 2 + 1]);
-	scherzo->looper.overdub[i * 2] = 0;
-	scherzo->looper.overdub[i * 2 + 1] = 0;
-      }
     } else {
       memset(scherzo->looper.overdub, 0,
 	     scherzo->looper.frames * 2 * sizeof(int16_t));
