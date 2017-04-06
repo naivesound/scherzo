@@ -20,26 +20,20 @@
 
 #include "fluid_io.h"
 
-int fluid_istream_gets(fluid_istream_t in, char* buf, int len);
+int fluid_istream_gets(fluid_istream_t in, char *buf, int len);
 
-fluid_istream_t fluid_get_stdin()
-{
-  return STDIN_FILENO;
-}
+fluid_istream_t fluid_get_stdin() { return STDIN_FILENO; }
 
-fluid_ostream_t fluid_get_stdout()
-{
-  return STDOUT_FILENO;
-}
+fluid_ostream_t fluid_get_stdout() { return STDOUT_FILENO; }
 
-int fluid_istream_readline(fluid_istream_t in, char* prompt, char* buf, int len)
-{
+int fluid_istream_readline(fluid_istream_t in, char *prompt, char *buf,
+			   int len) {
+  (void)prompt;
   return fluid_istream_gets(in, buf, len);
 }
 
 /* FIXME */
-int fluid_istream_gets(fluid_istream_t in, char* buf, int len)
-{
+int fluid_istream_gets(fluid_istream_t in, char *buf, int len) {
   char c;
   int n;
 
@@ -64,9 +58,7 @@ int fluid_istream_gets(fluid_istream_t in, char* buf, int len)
   return -1;
 }
 
-
-int fluid_ostream_printf(fluid_ostream_t out, char* format, ...)
-{
+int fluid_ostream_printf(fluid_ostream_t out, char *format, ...) {
   char buf[4096];
   va_list args;
   int len;
@@ -82,6 +74,6 @@ int fluid_ostream_printf(fluid_ostream_t out, char* format, ...)
 
   buf[4095] = 0;
 
-/*   return write(out, buf, len); */
+  /*   return write(out, buf, len); */
   return write(out, buf, strlen(buf));
 }

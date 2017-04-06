@@ -62,8 +62,11 @@ int main(int argc, char *argv[]) {
 
   scherzo_create(&scherzo, SAMPLE_RATE, 64, metronome_acoustic);
 
-  midi.openPort();
-  midi.setCallback(midiCallback, &scherzo);
+  for (unsigned int i = 0; i < midi.getPortCount(); i++) {
+    RtMidiIn *midi_in = new RtMidiIn;
+    midi_in->openPort(i);
+    midi_in->setCallback(midiCallback, &scherzo);
+  }
 
   params.deviceId = audio.getDefaultOutputDevice();
   params.nChannels = 2;
