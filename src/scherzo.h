@@ -140,6 +140,7 @@ static int scherzo_load_instrument(scherzo_t *scherzo, int index) {
 	char path[PATH_MAX];
 	snprintf(path, sizeof(path) - 1, "%s/%s", SCHERZO_SF2DIR,
 		 entries[r - 1]->d_name);
+	printf("loading sf2 at %s\n", path);
 	scherzo->fluid.font = fluid_synth_sfload(scherzo->fluid.synth, path, 1);
       }
       free(entries[r - 1]);
@@ -167,6 +168,18 @@ static void scherzo_destroy(scherzo_t *scherzo) {
 // void fluid_synth_set_chorus(fluid_synth_t* synth, int nr, double level,
 // double speed, double depth_ms, int type)
 //
+
+static int16_t scherzo_mix(int16_t a, int16_t b) {
+  float v = (1.f * ((int)a + (int)b)) / 0x7fff;
+  if (v <= -1.25f) {
+    v = -0.984375;
+  } else if (v >= 1.25f) {
+    v = 0.984375;
+  } else {
+    v = 1.1f * v - 0.2f * v * v * v;
+  }
+  return (int16_t)(v * 0x7fff);
+}
 
 static void scherzo_looper(scherzo_t *scherzo, int mode) {
   switch (scherzo->looper.state) {
@@ -207,8 +220,11 @@ static void scherzo_looper(scherzo_t *scherzo, int mode) {
     if (mode == 0) {
       scherzo->looper.state = SCHERZO_LOOPER_STATE_PLAYING;
       for (int i = 0; i < scherzo->looper.frames; i++) {
-	scherzo->looper.loop[i * 2] += scherzo->looper.overdub[i * 2];
-	scherzo->looper.loop[i * 2 + 1] += scherzo->looper.overdub[i * 2 + 1];
+	scherzo->looper.loop[i * 2] = scherzo_mix(
+	    scherzo->looper.loop[i * 2], scherzo->looper.overdub[i * 2]);
+	scherzo->looper.loop[i * 2 + 1] =
+	    scherzo_mix(scherzo->looper.loop[i * 2 + 1],
+			scherzo->looper.overdub[i * 2 + 1]);
 	scherzo->looper.overdub[i * 2] = 0;
 	scherzo->looper.overdub[i * 2 + 1] = 0;
       }
@@ -346,16 +362,19 @@ static void scherzo_write_stereo(scherzo_t *scherzo, int16_t *buf, int frames) {
   case SCHERZO_LOOPER_STATE_OVERDUBBING:
     for (int i = 0; i < frames; i++) {
       int j = (scherzo->looper.pos + i) % scherzo->looper.frames;
-      scherzo->looper.overdub[j * 2] += buf[i * 2];
-      scherzo->looper.overdub[j * 2 + 1] += buf[i * 2 + 1];
+      scherzo->looper.overdub[j * 2] =
+	  scherzo_mix(scherzo->looper.overdub[j * 2], buf[i * 2]);
+      scherzo->looper.overdub[j * 2 + 1] =
+	  scherzo_mix(scherzo->looper.overdub[j * 2 + 1], buf[i * 2 + 1]);
     } // fallthrough
   case SCHERZO_LOOPER_STATE_PLAYING:
     for (int i = 0; i < frames; i++) {
       int j = (scherzo->looper.pos + i) % scherzo->looper.frames;
-      buf[i * 2] +=
-	  scherzo->looper.overdub[j * 2] + scherzo->looper.loop[j * 2];
-      buf[i * 2 + 1] +=
-	  scherzo->looper.overdub[j * 2 + 1] + scherzo->looper.loop[j * 2 + 1];
+      buf[i * 2] = scherzo_mix(buf[i * 2], scherzo->looper.overdub[j * 2] +
+					       scherzo->looper.loop[j * 2]);
+      buf[i * 2 + 1] =
+	  scherzo_mix(buf[i * 2 + 1], scherzo->looper.overdub[j * 2 + 1] +
+					  scherzo->looper.loop[j * 2 + 1]);
     }
     scherzo->looper.pos =
 	(scherzo->looper.pos + frames) % scherzo->looper.frames;
@@ -374,8 +393,8 @@ static void scherzo_write_stereo(scherzo_t *scherzo, int16_t *buf, int frames) {
 	  scherzo->metronome.f(scherzo->sample_rate, scherzo->metronome.frame);
       scherzo->metronome.frame = (scherzo->metronome.frame + 1) % duration;
       v = v * scherzo->metronome.volume;
-      buf[i * 2] += v;
-      buf[i * 2 + 1] += v;
+      buf[i * 2] = scherzo_mix(buf[i * 2], v);
+      buf[i * 2 + 1] = scherzo_mix(buf[i * 2 + 1], v);
     }
   }
 }

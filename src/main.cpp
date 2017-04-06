@@ -72,7 +72,7 @@ int main(int argc, char *argv[]) {
   params.nChannels = 2;
   options.flags = RTAUDIO_ALSA_USE_DEFAULT;
 
-  unsigned int nframes = 64;
+  unsigned int nframes = 256;
 
   audio.openStream(&params, nullptr, RTAUDIO_SINT16, SAMPLE_RATE, &nframes,
 		   &audioCallback, &scherzo, &options);
