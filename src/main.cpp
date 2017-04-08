@@ -9,17 +9,28 @@
 #include <RtAudio.h>
 #include <RtMidi.h>
 
+#if !defined(_GLIBCXX_HAS_GTHREADS) && !defined(__APPLE__)
+#include "vendor/mingw.mutex.h"
+#include "vendor/mingw.thread.h"
+#endif
+
+#if !defined(_BSD_SOURCE) && !defined(_SVID_SOURCE) &&                         \
+    !(_POSIX_C_SOURCE >= 200809L || _XOPEN_SOURCE >= 700)
+#include "vendor/scandir.h"
+#endif
+
 #include <fluidsynth.h>
 
 #include "m.h"
 
 #include "scherzo.h"
 
-#include <termios.h>
 #include <unistd.h>
 
 #define SAMPLE_RATE 44100
 
+#ifndef __WIN32
+#include <termios.h>
 static int getch() {
   struct termios oldattr, newattr;
   int ch;
@@ -31,6 +42,9 @@ static int getch() {
   tcsetattr(STDIN_FILENO, TCSANOW, &oldattr);
   return ch;
 }
+#else
+#include <conio.h>
+#endif
 
 int audioCallback(void *out, void *in, unsigned int frames, double time,
 		  RtAudioStreamStatus status, void *arg) {

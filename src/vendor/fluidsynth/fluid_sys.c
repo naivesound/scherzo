@@ -18,7 +18,18 @@
  * 02111-1307, USA
  */
 
+#ifdef __WIN32
+#include <windows.h>
+#define sleep_ms(ms) Sleep(ms)
+#else
 #include <sys/select.h>
+static void sleep_ms(long ms) {
+  struct timeval tv;
+  tv.tv_sec = ms / 1000;
+  tv.tv_usec = (ms % 1000) * 1000;
+  select(0, NULL, NULL, NULL, &tv);
+}
+#endif
 
 #include "fluid_log.h"
 #include "fluid_sys.h"
@@ -335,10 +346,7 @@ void *fluid_timer_start(void *data) {
        timer->msec) */
     delay = (count * timer->msec) - (fluid_curtime() - start);
     if (delay > 0) {
-      struct timeval tv;
-      tv.tv_sec = delay / 1000;
-      tv.tv_usec = (delay % 1000) * 1000;
-      select(0, NULL, NULL, NULL, &tv);
+      sleep_ms(delay);
     }
 
     cont &= timer->cont;
