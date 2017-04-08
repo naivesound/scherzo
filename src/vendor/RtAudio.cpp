@@ -546,7 +546,7 @@ unsigned int RtApiCore::getDefaultInputDevice(void) {
   std::vector<AudioDeviceID> deviceList(nDevices);
   property.mSelector = kAudioHardwarePropertyDevices;
   result = AudioObjectGetPropertyData(kAudioObjectSystemObject, &property, 0,
-                                      NULL, &dataSize, (void *)&deviceList);
+                                      NULL, &dataSize, (void *)deviceList.data());
   if (result != noErr) {
     errorText_ = "RtApiCore::getDefaultInputDevice: OS-X system error getting "
                  "device IDs.";
@@ -586,7 +586,7 @@ unsigned int RtApiCore::getDefaultOutputDevice(void) {
   std::vector<AudioDeviceID> deviceList(nDevices);
   property.mSelector = kAudioHardwarePropertyDevices;
   result = AudioObjectGetPropertyData(kAudioObjectSystemObject, &property, 0,
-                                      NULL, &dataSize, (void *)&deviceList);
+                                      NULL, &dataSize, (void *)deviceList.data());
   if (result != noErr) {
     errorText_ = "RtApiCore::getDefaultOutputDevice: OS-X system error getting "
                  "device IDs.";
@@ -628,7 +628,7 @@ RtAudio::DeviceInfo RtApiCore::getDeviceInfo(unsigned int device) {
                                          kAudioObjectPropertyElementMaster};
   OSStatus result =
       AudioObjectGetPropertyData(kAudioObjectSystemObject, &property, 0, NULL,
-                                 &dataSize, (void *)&deviceList);
+                                 &dataSize, (void *)deviceList.data());
   if (result != noErr) {
     errorText_ =
         "RtApiCore::getDeviceInfo: OS-X system error getting device IDs.";
@@ -805,7 +805,7 @@ RtAudio::DeviceInfo RtApiCore::getDeviceInfo(unsigned int device) {
   UInt32 nRanges = dataSize / sizeof(AudioValueRange);
   std::vector<AudioValueRange> rangeList(nRanges);
   result =
-      AudioObjectGetPropertyData(id, &property, 0, NULL, &dataSize, &rangeList);
+      AudioObjectGetPropertyData(id, &property, 0, NULL, &dataSize, rangeList.data());
   if (result != kAudioHardwareNoError) {
     errorStream_ << "RtApiCore::getDeviceInfo: system error ("
                  << getErrorCode(result) << ") getting sample rates.";
@@ -960,7 +960,7 @@ bool RtApiCore::probeDeviceOpen(unsigned int device, StreamMode mode,
                                          kAudioObjectPropertyElementMaster};
   OSStatus result =
       AudioObjectGetPropertyData(kAudioObjectSystemObject, &property, 0, NULL,
-                                 &dataSize, (void *)&deviceList);
+                                 &dataSize, (void *)deviceList.data());
   if (result != noErr) {
     errorText_ =
         "RtApiCore::probeDeviceOpen: OS-X system error getting device IDs.";
