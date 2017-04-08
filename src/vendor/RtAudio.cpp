@@ -543,7 +543,7 @@ unsigned int RtApiCore::getDefaultInputDevice(void) {
   }
 
   dataSize *= nDevices;
-  AudioDeviceID deviceList[nDevices];
+  std::vector<AudioDeviceID> deviceList(nDevices);
   property.mSelector = kAudioHardwarePropertyDevices;
   result = AudioObjectGetPropertyData(kAudioObjectSystemObject, &property, 0,
                                       NULL, &dataSize, (void *)&deviceList);
@@ -583,7 +583,7 @@ unsigned int RtApiCore::getDefaultOutputDevice(void) {
   }
 
   dataSize = sizeof(AudioDeviceID) * nDevices;
-  AudioDeviceID deviceList[nDevices];
+  std::vector<AudioDeviceID> deviceList(nDevices);
   property.mSelector = kAudioHardwarePropertyDevices;
   result = AudioObjectGetPropertyData(kAudioObjectSystemObject, &property, 0,
                                       NULL, &dataSize, (void *)&deviceList);
@@ -621,7 +621,7 @@ RtAudio::DeviceInfo RtApiCore::getDeviceInfo(unsigned int device) {
     return info;
   }
 
-  AudioDeviceID deviceList[nDevices];
+  std::vector<AudioDeviceID> deviceList(nDevices);
   UInt32 dataSize = sizeof(AudioDeviceID) * nDevices;
   AudioObjectPropertyAddress property = {kAudioHardwarePropertyDevices,
                                          kAudioObjectPropertyScopeGlobal,
@@ -803,7 +803,7 @@ RtAudio::DeviceInfo RtApiCore::getDeviceInfo(unsigned int device) {
   }
 
   UInt32 nRanges = dataSize / sizeof(AudioValueRange);
-  AudioValueRange rangeList[nRanges];
+  std::vector<AudioValueRange> rangeList(nRanges);
   result =
       AudioObjectGetPropertyData(id, &property, 0, NULL, &dataSize, &rangeList);
   if (result != kAudioHardwareNoError) {
@@ -953,7 +953,7 @@ bool RtApiCore::probeDeviceOpen(unsigned int device, StreamMode mode,
     return FAILURE;
   }
 
-  AudioDeviceID deviceList[nDevices];
+  std::vector<AudioDeviceID> deviceList(nDevices);
   UInt32 dataSize = sizeof(AudioDeviceID) * nDevices;
   AudioObjectPropertyAddress property = {kAudioHardwarePropertyDevices,
                                          kAudioObjectPropertyScopeGlobal,

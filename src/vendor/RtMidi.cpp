@@ -1028,9 +1028,9 @@ void MidiOutCore :: sendMessage( std::vector<unsigned char> *message )
     return;
   }
 
-  Byte buffer[nBytes+(sizeof(MIDIPacketList))];
+  std::vector<Byte> buffer(nBytes+(sizeof(MIDIPacketList)));
   ByteCount listSize = sizeof(buffer);
-  MIDIPacketList *packetList = (MIDIPacketList*)buffer;
+  MIDIPacketList *packetList = (MIDIPacketList*)buffer.data();
   MIDIPacket *packet = MIDIPacketListInit( packetList );
 
   ByteCount remainingBytes = nBytes;
