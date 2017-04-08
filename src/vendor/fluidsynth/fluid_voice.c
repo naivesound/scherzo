@@ -1968,13 +1968,14 @@ fluid_voice_get_lower_boundary_for_attenuation(fluid_voice_t *voice) {
  * proper order. When starting up, calculate the initial phase.
  */
 void fluid_voice_check_sample_sanity(fluid_voice_t *voice) {
-  int min_index_nonloop = (int)voice->sample->start;
-  int max_index_nonloop = (int)voice->sample->end;
+  unsigned int min_index_nonloop = voice->sample->start;
+  unsigned int max_index_nonloop = voice->sample->end;
 
   /* make sure we have enough samples surrounding the loop */
-  int min_index_loop = (int)voice->sample->start + FLUID_MIN_LOOP_PAD;
-  int max_index_loop = (int)voice->sample->end - FLUID_MIN_LOOP_PAD +
-                       1; /* 'end' is last valid sample, loopend can be + 1 */
+  unsigned int min_index_loop = voice->sample->start + FLUID_MIN_LOOP_PAD;
+  unsigned int max_index_loop =
+      voice->sample->end - FLUID_MIN_LOOP_PAD +
+      1; /* 'end' is last valid sample, loopend can be + 1 */
 
   if (!voice->check_sample_sanity_flag) {
     return;
@@ -2096,7 +2097,8 @@ void fluid_voice_check_sample_sanity(fluid_voice_t *voice) {
      * actions required.
      */
     int index_in_sample = fluid_phase_index(voice->phase);
-    if (index_in_sample >= voice->loopend) {
+    if (index_in_sample >= 0 &&
+        (unsigned int)index_in_sample >= voice->loopend) {
       /* FLUID_LOG(FLUID_DBG, "Loop / sample sanity check: Phase after 2nd loop
        * point!"); */
       fluid_phase_set_int(voice->phase, voice->loopstart);
