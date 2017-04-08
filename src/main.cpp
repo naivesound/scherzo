@@ -80,6 +80,8 @@ int main(int argc, char *argv[]) {
 
   int bank = 0;
   int gain = 120;
+  int looper_gain = 120;
+  int decay = 0;
   scherzo_load_instrument(&scherzo, bank);
   scherzo_set_gain(&scherzo, gain);
 #define LIMIT(x) ((x) > 127 ? 127 : ((x) < 0 ? 0 : (x)))
@@ -105,6 +107,26 @@ int main(int argc, char *argv[]) {
       gain = LIMIT(gain + 1);
       printf("gain: %d\n", gain);
       scherzo_set_gain(&scherzo, gain);
+      break;
+    case 'c':
+      looper_gain = LIMIT(looper_gain - 1);
+      printf("looper_gain: %d\n", looper_gain);
+      scherzo_set_looper_gain(&scherzo, looper_gain);
+      break;
+    case 'C':
+      looper_gain = LIMIT(looper_gain + 1);
+      printf("looper_gain: %d\n", looper_gain);
+      scherzo_set_looper_gain(&scherzo, looper_gain);
+      break;
+    case 'm':
+      decay = LIMIT(decay - 1);
+      printf("decay: %d\n", decay);
+      scherzo_set_decay(&scherzo, decay);
+      break;
+    case 'M':
+      decay = LIMIT(decay + 1);
+      printf("decay: %d\n", decay);
+      scherzo_set_decay(&scherzo, decay);
       break;
     case 'b':
       scherzo_tap_bpm(&scherzo);

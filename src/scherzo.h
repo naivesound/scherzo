@@ -103,7 +103,7 @@ static int scherzo_create(scherzo_t *scherzo, int sample_rate,
   scherzo->looper.frames = 0;
   scherzo->looper.overdub = NULL;
   scherzo->looper.loop = NULL;
-  scherzo->looper.decay = 0;
+  scherzo->looper.decay = 0.5;
   scherzo->looper.volume = 1;
 
   scherzo->fluid.font = -1;
@@ -305,6 +305,14 @@ static void scherzo_set_gain(scherzo_t *scherzo, int gain) {
   }
 }
 
+static void scherzo_set_looper_gain(scherzo_t *scherzo, int gain) {
+  scherzo->looper.volume = gain / 127.f;
+}
+
+static void scherzo_set_decay(scherzo_t *scherzo, int decay) {
+  scherzo->looper.decay = decay / 127.f;
+}
+
 static void scherzo_cc(scherzo_t *scherzo, int chan, int ctrl, int value) {
   if (scherzo->fluid.synth != NULL) {
     switch (ctrl) {
@@ -376,10 +384,14 @@ static void scherzo_write_stereo(scherzo_t *scherzo, int16_t *buf, int frames) {
     for (int i = 0; i < frames; i++) {
       int j = (scherzo->looper.pos + i) % scherzo->looper.frames;
       buf[i * 2] = scherzo_mix(buf[i * 2], scherzo->looper.overdub[j * 2] +
-					       scherzo->looper.loop[j * 2]);
+					       scherzo->looper.loop[j * 2] *
+						   scherzo->looper.volume);
       buf[i * 2 + 1] =
 	  scherzo_mix(buf[i * 2 + 1], scherzo->looper.overdub[j * 2 + 1] +
-					  scherzo->looper.loop[j * 2 + 1]);
+					  scherzo->looper.loop[j * 2 + 1] *
+					      scherzo->looper.volume);
+      scherzo->looper.overdub[j * 2] *= (1 - scherzo->looper.decay);
+      scherzo->looper.overdub[j * 2 + 1] *= (1 - scherzo->looper.decay);
     }
     scherzo->looper.pos =
 	(scherzo->looper.pos + frames) % scherzo->looper.frames;
