@@ -22,6 +22,7 @@
 #include <windows.h>
 #define sleep_ms(ms) Sleep(ms)
 #else
+#include <stdlib.h>
 #include <sys/select.h>
 static void sleep_ms(long ms) {
   struct timeval tv;
