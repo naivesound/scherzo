@@ -1,9 +1,15 @@
+#include <atomic>
+#include <chrono>
+#include <map>
+#include <string>
+#include <thread>
+#include <utility>
+#include <vector>
+
 #include <RtAudio.h>
 #include <RtMidi.h>
 
 #include <fluidsynth.h>
-
-#include <vector>
 
 #include "m.h"
 
@@ -50,10 +56,43 @@ void midiCallback(double time, std::vector<unsigned char> *msg, void *arg) {
   }
 }
 
+static void midi_poll_thread(scherzo_t *scherzo,
+			     std::atomic<bool> &should_exit) {
+  std::map<std::pair<unsigned int, std::string>, RtMidiIn *> ports;
+  while (!should_exit) {
+    RtMidiIn midi_inputs;
+    for (auto it = ports.begin(); it != ports.end();) {
+      auto k = it->first;
+      if (k.first >= midi_inputs.getPortCount() ||
+	  k.second != midi_inputs.getPortName(k.first)) {
+	std::cout << "  close " << k.first << " " << k.second << std::endl;
+	it->second->closePort();
+	it = ports.erase(it);
+      } else {
+	++it;
+      }
+    }
+    for (unsigned int i = 0; i < midi_inputs.getPortCount(); i++) {
+      std::pair<int, std::string> k(i, midi_inputs.getPortName(i));
+      if (ports.find(k) == ports.end()) {
+	std::cout << "  open " << k.first << " " << k.second << std::endl;
+	RtMidiIn *midi_in = new RtMidiIn();
+	midi_in->openPort(i);
+	midi_in->setCallback(midiCallback, scherzo);
+	ports[k] = midi_in;
+      }
+    }
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+  }
+  for (auto &kv : ports) {
+    kv.second->closePort();
+  }
+}
+
 int main(int argc, char *argv[]) {
   (void)argc;
   (void)argv;
-  RtMidiIn midi;
+  std::atomic<bool> should_exit(false);
   RtAudio audio;
   RtAudio::StreamOptions options;
   RtAudio::StreamParameters params;
@@ -62,11 +101,7 @@ int main(int argc, char *argv[]) {
 
   scherzo_create(&scherzo, SAMPLE_RATE, 64, metronome_acoustic);
 
-  for (unsigned int i = 0; i < midi.getPortCount(); i++) {
-    RtMidiIn *midi_in = new RtMidiIn;
-    midi_in->openPort(i);
-    midi_in->setCallback(midiCallback, &scherzo);
-  }
+  std::thread midi_poller(midi_poll_thread, &scherzo, std::ref(should_exit));
 
   params.deviceId = audio.getDefaultOutputDevice();
   params.nChannels = 2;
@@ -85,7 +120,8 @@ int main(int argc, char *argv[]) {
   scherzo_load_instrument(&scherzo, bank);
   scherzo_set_gain(&scherzo, gain);
 #define LIMIT(x) ((x) > 127 ? 127 : ((x) < 0 ? 0 : (x)))
-  for (bool should_exit = false; !should_exit;) {
+
+  while (!should_exit) {
     int c = getch();
     switch (c) {
     case ',':
@@ -145,7 +181,7 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  midi.closePort();
+  midi_poller.join();
   audio.stopStream();
   return 0;
 }
