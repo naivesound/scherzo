@@ -18,7 +18,6 @@
  * 02111-1307, USA
  */
 
-
 /**
 
    This header contains a bunch of (mostly) system and machine
@@ -38,17 +37,14 @@
 
 #include "fluid_types.h"
 
-
 void fluid_sys_config(void);
 void fluid_log_config(void);
 void fluid_time_config(void);
 
-
 /*
  * Utility functions
  */
-char *fluid_strtok (char **str, char *delim);
-
+char *fluid_strtok(char **str, char *delim);
 
 /**
 
@@ -61,23 +57,19 @@ extern unsigned int fluid_debug_flags;
 
 #if DEBUG
 
-enum fluid_debug_level {
-  FLUID_DBG_DRIVER = 1
-};
+enum fluid_debug_level { FLUID_DBG_DRIVER = 1 };
 
-int fluid_debug(int level, char * fmt, ...);
+int fluid_debug(int level, char *fmt, ...);
 
 #else
 #define fluid_debug
 #endif
-
 
 /** fluid_curtime() returns the current time in milliseconds. This time
     should only be used in relative time measurements.  */
 
 /** fluid_utime() returns the time in micro seconds. this time should
     only be used to measure duration (relative times). */
-
 
 unsigned int fluid_curtime(void);
 double fluid_utime(void);
@@ -89,16 +81,16 @@ double fluid_utime(void);
 
 /* if the callback function returns 1 the timer will continue; if it
    returns 0 it will stop */
-typedef int (*fluid_timer_callback_t)(void* data, unsigned int msec);
+typedef int (*fluid_timer_callback_t)(void *data, unsigned int msec);
 
 typedef struct _fluid_timer_t fluid_timer_t;
 
-fluid_timer_t* new_fluid_timer(int msec, fluid_timer_callback_t callback,
-					    void* data, int new_thread, int auto_destroy);
+fluid_timer_t *new_fluid_timer(int msec, fluid_timer_callback_t callback,
+			       void *data, int new_thread, int auto_destroy);
 
-int delete_fluid_timer(fluid_timer_t* timer);
-int fluid_timer_join(fluid_timer_t* timer);
-int fluid_timer_stop(fluid_timer_t* timer);
+int delete_fluid_timer(fluid_timer_t *timer);
+int fluid_timer_join(fluid_timer_t *timer);
+int fluid_timer_stop(fluid_timer_t *timer);
 
 /**
 
@@ -109,13 +101,14 @@ int fluid_timer_stop(fluid_timer_t* timer);
 #ifdef FLUID_ENABLE_THREAD
 #include <pthread.h>
 typedef pthread_mutex_t fluid_mutex_t;
-#define fluid_mutex_init(_m)      pthread_mutex_init(&(_m), NULL)
-#define fluid_mutex_destroy(_m)   pthread_mutex_destroy(&(_m))
-#define fluid_mutex_lock(_m)      pthread_mutex_lock(&(_m))
-#define fluid_mutex_unlock(_m)    pthread_mutex_unlock(&(_m))
+#define fluid_mutex_init(_m) pthread_mutex_init(&(_m), NULL)
+#define fluid_mutex_destroy(_m) pthread_mutex_destroy(&(_m))
+#define fluid_mutex_lock(_m) pthread_mutex_lock(&(_m))
+#define fluid_mutex_unlock(_m) pthread_mutex_unlock(&(_m))
 #else
 typedef int fluid_mutex_t;
-#define fluid_mutex_init(_m)      { (_m) = 0; }
+#define fluid_mutex_init(_m)                                                   \
+  { (_m) = 0; }
 #define fluid_mutex_destroy(_m)
 #define fluid_mutex_lock(_m)
 #define fluid_mutex_unlock(_m)
@@ -127,20 +120,19 @@ typedef int fluid_mutex_t;
 */
 
 typedef struct _fluid_thread_t fluid_thread_t;
-typedef void (*fluid_thread_func_t)(void* data);
+typedef void (*fluid_thread_func_t)(void *data);
 
 /** When detached, 'join' does not work and the thread destroys itself
     when finished. */
-fluid_thread_t* new_fluid_thread(fluid_thread_func_t func, void* data, int detach);
-int delete_fluid_thread(fluid_thread_t* thread);
-int fluid_thread_join(fluid_thread_t* thread);
-
+fluid_thread_t *new_fluid_thread(fluid_thread_func_t func, void *data,
+				 int detach);
+int delete_fluid_thread(fluid_thread_t *thread);
+int fluid_thread_join(fluid_thread_t *thread);
 
 /**
 
     Profiling
  */
-
 
 /**
     Profile numbers. List all the pieces of code you want to profile
@@ -160,17 +152,15 @@ enum {
   FLUID_PROF_LAST
 };
 
-
 #if WITH_PROFILING
 
 void fluid_profiling_print(void);
-
 
 /** Profiling data. Keep track of min/avg/max values to execute a
     piece of code. */
 typedef struct _fluid_profile_data_t {
   int num;
-  char* description;
+  char *description;
   double min, max, total;
   unsigned int count;
 } fluid_profile_data_t;
@@ -182,27 +172,32 @@ extern fluid_profile_data_t fluid_profile_data[];
 
 /** Macro to calculate the min/avg/max. Needs a time refence and a
     profile number. */
-#define fluid_profile(_num,_ref) { \
-  double _now = fluid_utime(); \
-  double _delta = _now - _ref; \
-  fluid_profile_data[_num].min = _delta < fluid_profile_data[_num].min ? _delta : fluid_profile_data[_num].min; \
-  fluid_profile_data[_num].max = _delta > fluid_profile_data[_num].max ? _delta : fluid_profile_data[_num].max; \
-  fluid_profile_data[_num].total += _delta; \
-  fluid_profile_data[_num].count++; \
-  _ref = _now; \
-}
-
+#define fluid_profile(_num, _ref)                                              \
+  {                                                                            \
+    double _now = fluid_utime();                                               \
+    double _delta = _now - _ref;                                               \
+    fluid_profile_data[_num].min = _delta < fluid_profile_data[_num].min       \
+				       ? _delta                                \
+				       : fluid_profile_data[_num].min;         \
+    fluid_profile_data[_num].max = _delta > fluid_profile_data[_num].max       \
+				       ? _delta                                \
+				       : fluid_profile_data[_num].max;         \
+    fluid_profile_data[_num].total += _delta;                                  \
+    fluid_profile_data[_num].count++;                                          \
+    _ref = _now;                                                               \
+  }
 
 #else
 
 /* No profiling */
 #define fluid_profiling_print()
-#define fluid_profile_ref()  0
-#define fluid_profile(_num,_ref)
+#define fluid_profile_ref() 0
+#define fluid_profile(_num, _ref)                                              \
+  do {                                                                         \
+    (void)(_num), (void)(_ref);                                                \
+  } while (0);
 
 #endif
-
-
 
 /**
 
@@ -213,12 +208,11 @@ extern fluid_profile_data_t fluid_profile_data[];
  */
 
 #if defined(HAVE_SYS_MMAN_H)
-#define fluid_mlock(_p,_n)      mlock(_p, _n)
-#define fluid_munlock(_p,_n)    munlock(_p,_n)
+#define fluid_mlock(_p, _n) mlock(_p, _n)
+#define fluid_munlock(_p, _n) munlock(_p, _n)
 #else
-#define fluid_mlock(_p,_n)      0
-#define fluid_munlock(_p,_n)
+#define fluid_mlock(_p, _n) 0
+#define fluid_munlock(_p, _n)
 #endif
-
 
 #endif /* _FLUID_SYS_H */
