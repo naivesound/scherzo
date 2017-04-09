@@ -22,11 +22,6 @@ class Scherzo {
       });
     }
 
-    FS.mkdir('/sf2');
-    FS.createPreloadedFile('/sf2', 'piano.sf2', '/piano.sf2', true, false);
-    FS.createPreloadedFile('/sf2', 'grand_piano.sf2', '/grand_piano.sf2', true,
-			   false);
-
     const AUDIO_BUFFER_SIZE = 512;
     const pcm = audioContext.createScriptProcessor(AUDIO_BUFFER_SIZE, 0, 2);
     const analyser = audioContext.createAnalyser();
@@ -46,7 +41,7 @@ class Scherzo {
     this.pcm = pcm;
     this.pcm.connect(this.analyser);
 
-    console.log(this.scherzo, this.int16BufPtr);
+    this.loadInstrument(0);
   }
   loadInstrument(n) {
     Module.ccall('scherzo_load_instrument', 'int', [ 'number', 'number' ],
@@ -95,4 +90,15 @@ var Module = window.Module || {
   d.getElementsByTagName('head')[0].appendChild(script);
 })(document);
 
-Module['onRuntimeInitialized'] = function() { window.scherzo = new Scherzo(); };
+Module['onRuntimeInitialized'] = function() {
+  FS.mkdir('/sf2');
+  FS.createPreloadedFile('/sf2', 'piano.sf2', '/piano.sf2', true, false, () => {
+    FS.createPreloadedFile('/sf2', 'grand_piano.sf2', '/grand_piano.sf2', true,
+			   false, () => { main(); });
+  });
+};
+
+function main() {
+  console.log('staring scherzo');
+  window.scherzo = new Scherzo();
+}
