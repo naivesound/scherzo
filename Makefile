@@ -28,28 +28,12 @@ ifeq ($(windows),1)
 	LDFLAGS += -lole32 -lm -lksuser -lwinmm -lws2_32 -mwindows -static
 endif
 
-CXXFLAGS += -Isrc/vendor -Isrc/vendor/fluidsynth
+INCS = -Isrc/vendor -Isrc/vendor/fluidsynth
 
-OBJS := src/main.o \
+OBJS := src/main.o src/scherzo.o \
 	src/vendor/RtAudio.o src/vendor/RtMidi.o \
-	src/vendor/fluidsynth/fluid_chan.o \
-	src/vendor/fluidsynth/fluid_chorus.o \
-	src/vendor/fluidsynth/fluid_conv.o \
-	src/vendor/fluidsynth/fluid_defsfont.o \
-	src/vendor/fluidsynth/fluid_event.o \
-	src/vendor/fluidsynth/fluid_gen.o \
-	src/vendor/fluidsynth/fluid_hash.o \
-	src/vendor/fluidsynth/fluid_io.o \
-	src/vendor/fluidsynth/fluid_list.o \
-	src/vendor/fluidsynth/fluid_midi.o \
-	src/vendor/fluidsynth/fluid_midi_router.o \
-	src/vendor/fluidsynth/fluid_mod.o \
-	src/vendor/fluidsynth/fluid_rev.o \
-	src/vendor/fluidsynth/fluid_settings.o \
-	src/vendor/fluidsynth/fluid_synth.o \
-	src/vendor/fluidsynth/fluid_sys.o \
-	src/vendor/fluidsynth/fluid_tuning.o \
-	src/vendor/fluidsynth/fluid_voice.o \
+
+CPPFLAGS += $(INCS)
 
 all: $(SCHERZO_BIN)
 	
@@ -67,8 +51,30 @@ android: src/scherzo.h src/m.h
 	cp src/vendor/fluidsynth/*.[ch] android/app/src/main/cpp/fluidsynth
 	cd android && ./gradlew build
 
+EMCC_EXPORT := "['_scherzo_create','_scherzo_destroy','_scherzo_write_stereo', '_scherzo_midi', '_scherzo_load_instrument', '_scherzo_tap_bpm']"
+
+web: src/scherzo.h src/m.h
+	mkdir -p _tmp/js _tmp/wasm
+	docker run --rm -v $(shell pwd):/src naivesound/emcc \
+		emcc src/scherzo.c -o _tmp/js/scherzo-asm.js $(INCS) \
+		--use-preload-plugins \
+		-s ALLOW_MEMORY_GROWTH=1 \
+		-s EXPORTED_FUNCTIONS=$(EMCC_EXPORT) -O3
+	docker run --rm -v $(shell pwd):/src naivesound/emcc \
+		emcc src/scherzo.c -o _tmp/wasm/scherzo.html $(INCS) \
+		--use-preload-plugins \
+		-s WASM=1 \
+		-s ALLOW_MEMORY_GROWTH=1 \
+		-s EXPORTED_FUNCTIONS=$(EMCC_EXPORT) -O3
+	mv -f _tmp/js/scherzo-asm.js _tmp/js/scherzo-asm.js.mem web
+	mv -f _tmp/wasm/scherzo.wasm web
+	mv -f _tmp/wasm/scherzo.js web/scherzo-loader.js
+	rm -f _tmp/wasm/scherzo.html
+	rmdir _tmp/js _tmp/wasm
+	rmdir  _tmp
+
 clean:
 	rm -f $(OBJS)
 	rm -f $(SCHERZO_BIN)
 
-.PHONY: all android lint clean
+.PHONY: all android lint clean web

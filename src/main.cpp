@@ -14,23 +14,9 @@
 #include "vendor/mingw.thread.h"
 #endif
 
-#if !defined(_BSD_SOURCE) && !defined(_SVID_SOURCE) &&                         \
-    !(_POSIX_C_SOURCE >= 200809L || _XOPEN_SOURCE >= 700)
-#include "vendor/scandir.h"
-#endif
-
-#include <fluidsynth.h>
-
-#include "m.h"
-
-#include "scherzo.h"
-
-#include <unistd.h>
-
-#define SAMPLE_RATE 44100
-
 #ifndef __WIN32
 #include <termios.h>
+#include <unistd.h>
 static int getch() {
   struct termios oldattr, newattr;
   int ch;
@@ -45,6 +31,10 @@ static int getch() {
 #else
 #include <conio.h>
 #endif
+
+#include "scherzo.h"
+
+#define SAMPLE_RATE 44100
 
 int audioCallback(void *out, void *in, unsigned int frames, double time,
 		  RtAudioStreamStatus status, void *arg) {
@@ -111,11 +101,9 @@ int main(int argc, char *argv[]) {
   RtAudio::StreamOptions options;
   RtAudio::StreamParameters params;
 
-  scherzo_t scherzo;
+  scherzo_t *scherzo = scherzo_create(SAMPLE_RATE, 64);
 
-  scherzo_create(&scherzo, SAMPLE_RATE, 64, metronome_acoustic);
-
-  std::thread midi_poller(midi_poll_thread, &scherzo, std::ref(should_exit));
+  std::thread midi_poller(midi_poll_thread, scherzo, std::ref(should_exit));
 
   params.deviceId = audio.getDefaultOutputDevice();
   params.nChannels = 2;
@@ -124,15 +112,15 @@ int main(int argc, char *argv[]) {
   unsigned int nframes = 256;
 
   audio.openStream(&params, nullptr, RTAUDIO_SINT16, SAMPLE_RATE, &nframes,
-		   &audioCallback, &scherzo, &options);
+		   &audioCallback, scherzo, &options);
   audio.startStream();
 
   int bank = 0;
   int gain = 120;
   int looper_gain = 120;
   int decay = 0;
-  scherzo_load_instrument(&scherzo, bank);
-  scherzo_set_gain(&scherzo, gain);
+  scherzo_load_instrument(scherzo, bank);
+  scherzo_set_gain(scherzo, gain);
 #define LIMIT(x) ((x) > 127 ? 127 : ((x) < 0 ? 0 : (x)))
 
   while (!should_exit) {
@@ -140,54 +128,52 @@ int main(int argc, char *argv[]) {
     switch (c) {
     case ',':
       bank = LIMIT(bank - 1);
-      scherzo_load_instrument(&scherzo, bank);
+      scherzo_load_instrument(scherzo, bank);
       printf("bank: %d\n", bank);
       break;
     case '.':
       bank = LIMIT(bank + 1);
-      scherzo_load_instrument(&scherzo, bank);
+      scherzo_load_instrument(scherzo, bank);
       printf("bank: %d\n", bank);
       break;
     case 'v':
       gain = LIMIT(gain - 1);
       printf("gain: %d\n", gain);
-      scherzo_set_gain(&scherzo, gain);
+      scherzo_set_gain(scherzo, gain);
       break;
     case 'V':
       gain = LIMIT(gain + 1);
       printf("gain: %d\n", gain);
-      scherzo_set_gain(&scherzo, gain);
+      scherzo_set_gain(scherzo, gain);
       break;
     case 'c':
       looper_gain = LIMIT(looper_gain - 1);
       printf("looper_gain: %d\n", looper_gain);
-      scherzo_set_looper_gain(&scherzo, looper_gain);
+      scherzo_set_looper_gain(scherzo, looper_gain);
       break;
     case 'C':
       looper_gain = LIMIT(looper_gain + 1);
       printf("looper_gain: %d\n", looper_gain);
-      scherzo_set_looper_gain(&scherzo, looper_gain);
+      scherzo_set_looper_gain(scherzo, looper_gain);
       break;
     case 'm':
       decay = LIMIT(decay - 1);
       printf("decay: %d\n", decay);
-      scherzo_set_decay(&scherzo, decay);
+      scherzo_set_decay(scherzo, decay);
       break;
     case 'M':
       decay = LIMIT(decay + 1);
       printf("decay: %d\n", decay);
-      scherzo_set_decay(&scherzo, decay);
+      scherzo_set_decay(scherzo, decay);
       break;
     case 'b':
-      scherzo_tap_bpm(&scherzo);
+      scherzo_tap_bpm(scherzo);
       break;
     case 'n':
-      scherzo_looper(&scherzo, 0);
-      printf("looper: %d\n", scherzo.looper.state);
+      scherzo_looper(scherzo, 0);
       break;
     case 'N':
-      scherzo_looper(&scherzo, 1);
-      printf("looper: %d\n", scherzo.looper.state);
+      scherzo_looper(scherzo, 1);
       break;
     case 'q':
       should_exit = true;
@@ -197,5 +183,6 @@ int main(int argc, char *argv[]) {
 
   midi_poller.join();
   audio.stopStream();
+  scherzo_destroy(scherzo);
   return 0;
 }
