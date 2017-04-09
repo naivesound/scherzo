@@ -26,6 +26,35 @@
 #include <fluid_tuning.c>
 #include <fluid_voice.c>
 
+#define MIDI_MSG_NOTE_ON 0x90
+#define MIDI_MSG_NOTE_OFF 0x80
+#define MIDI_MSG_CC 0xb0
+#define MIDI_MSG_PITCH_BEND 0xe0
+
+#define MIDI_MSG_CLOCK 0xf8
+#define MIDI_MSG_START 0xfa
+#define MIDI_MSG_STOP 0xfc
+
+#define MIDI_CC_BANK_MSB 0x00 /* Used to select instrument */
+#define MIDI_CC_MOD 0x01
+#define MIDI_CC_VOL 0x07 /* Synthesizer gain */
+#define MIDI_CC_GPC1 0x10
+#define MIDI_CC_GPC2 0x11
+#define MIDI_CC_GPC3 0x12
+#define MIDI_CC_GPC4 0x13
+#define MIDI_CC_GPC5 0x50
+#define MIDI_CC_GPC6 0x51
+#define MIDI_CC_GPC7 0x52
+#define MIDI_CC_GPC8 0x53
+
+#define MIDI_CC_SUSTAIN 0x40
+
+#define MIDI_CC_REVERB 91
+#define MIDI_CC_CHORUS 93
+
+#define SCHERZO_BPM_MAX_TAPS 8
+#define SCHERZO_BPM_MAX_IDLE_INTERVAL 2 /* seconds */
+
 enum schero_looper_state {
   SCHERZO_LOOPER_STATE_CLEAR,
   SCHERZO_LOOPER_STATE_RECORDING,
@@ -38,6 +67,9 @@ typedef int16_t (*metronome_fn_t)(int sample_rate, int frame);
 
 struct scherzo {
   int sample_rate;
+
+  scherzo_notify_fn notify_fn;
+  void *notify_context;
 
   struct {
     enum schero_looper_state state;
@@ -142,12 +174,16 @@ static int scherzo_scandir(const char *dir, struct dirent ***namelist,
 #define SCHERZO_SF2DIR "./sf2"
 #endif
 
-scherzo_t *scherzo_create(int sample_rate, int max_polyphony) {
+scherzo_t *scherzo_create(int sample_rate, int max_polyphony,
+			  scherzo_notify_fn notify_fn, void *context) {
   scherzo_t *scherzo = (scherzo_t *)malloc(sizeof(*scherzo));
   if (scherzo == NULL) {
     return NULL;
   }
   scherzo->sample_rate = sample_rate;
+
+  scherzo->notify_fn = notify_fn;
+  scherzo->notify_context = context;
 
   scherzo->metronome.bpm = 0;
   scherzo->metronome.f = metronome_acoustic;
@@ -182,12 +218,20 @@ scherzo_t *scherzo_create(int sample_rate, int max_polyphony) {
   return scherzo;
 }
 
+static void scherzo_notify(scherzo_t *scherzo, int event, int value) {
+  if (scherzo->notify_fn != NULL) {
+    scherzo->notify_fn(scherzo, event, value, scherzo->notify_context);
+  }
+}
+
 int scherzo_load_instrument(scherzo_t *scherzo, int index) {
   for (int chan = 0; chan < 16; chan++) {
     fluid_synth_all_sounds_off(scherzo->fluid.synth, chan);
   }
   if (scherzo->fluid.font > 0) {
+    printf("before unload\n");
     fluid_synth_sfunload(scherzo->fluid.synth, scherzo->fluid.font, 1);
+    printf("after unload\n");
     scherzo->fluid.font = -1;
   }
   if (index >= 0) {
@@ -204,7 +248,9 @@ int scherzo_load_instrument(scherzo_t *scherzo, int index) {
 	snprintf(path, sizeof(path) - 1, "%s/%s", SCHERZO_SF2DIR,
 		 entries[r - 1]->d_name);
 	printf("loading sf2 at %s\n", path);
+	printf("before load\n");
 	scherzo->fluid.font = fluid_synth_sfload(scherzo->fluid.synth, path, 1);
+	printf("after load\n");
       }
       free(entries[r - 1]);
     }
@@ -346,12 +392,14 @@ int scherzo_tap_bpm(scherzo_t *scherzo) {
 }
 
 void scherzo_note_on(scherzo_t *scherzo, int chan, int key, int velocity) {
+  scherzo_notify(scherzo, SCHERZO_EVENT_NOTE_ON, key);
   if (scherzo->fluid.synth != NULL) {
     fluid_synth_noteon(scherzo->fluid.synth, chan, key, velocity);
   }
 }
 
 void scherzo_note_off(scherzo_t *scherzo, int chan, int key) {
+  scherzo_notify(scherzo, SCHERZO_EVENT_NOTE_OFF, key);
   if (scherzo->fluid.synth != NULL) {
     fluid_synth_noteoff(scherzo->fluid.synth, chan, key);
   }
@@ -459,6 +507,9 @@ void scherzo_write_stereo(scherzo_t *scherzo, int16_t *buf, int frames) {
     }
     scherzo->looper.pos =
 	(scherzo->looper.pos + frames) % scherzo->looper.frames;
+    if (scherzo->looper.pos == 0) {
+      scherzo_notify(scherzo, SCHERZO_EVENT_LOOP, 0);
+    }
     break;
   }
 
@@ -470,6 +521,9 @@ void scherzo_write_stereo(scherzo_t *scherzo, int16_t *buf, int frames) {
     float bps = scherzo->metronome.bpm / 60.f;
     int duration = scherzo->sample_rate / bps;
     for (int i = 0; i < frames; i++) {
+      if (scherzo->metronome.frame == 0) {
+	scherzo_notify(scherzo, SCHERZO_EVENT_BEAT, 0);
+      }
       int16_t v =
 	  scherzo->metronome.f(scherzo->sample_rate, scherzo->metronome.frame);
       scherzo->metronome.frame = (scherzo->metronome.frame + 1) % duration;

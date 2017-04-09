@@ -93,6 +93,14 @@ static void midi_poll_thread(scherzo_t *scherzo,
   }
 }
 
+static void scherzo_cb(scherzo_t *scherzo, int event, int value,
+		       void *context) {
+  (void)scherzo;
+  (void)context;
+  printf("event: %d, value: %d\n", event, value);
+  //
+}
+
 int main(int argc, char *argv[]) {
   (void)argc;
   (void)argv;
@@ -101,7 +109,7 @@ int main(int argc, char *argv[]) {
   RtAudio::StreamOptions options;
   RtAudio::StreamParameters params;
 
-  scherzo_t *scherzo = scherzo_create(SAMPLE_RATE, 64);
+  scherzo_t *scherzo = scherzo_create(SAMPLE_RATE, 64, scherzo_cb, NULL);
 
   std::thread midi_poller(midi_poll_thread, scherzo, std::ref(should_exit));
 

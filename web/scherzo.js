@@ -26,7 +26,7 @@ class Scherzo {
     const pcm = audioContext.createScriptProcessor(AUDIO_BUFFER_SIZE, 0, 2);
     const analyser = audioContext.createAnalyser();
 
-    this.sampleRate = 44100;
+    this.sampleRate = audioContext.sampleRate;
     this.scherzo =
 	Module.ccall('scherzo_create', 'number', [ 'number', 'number' ],
 		     [ this.sampleRate, 32 ]);
