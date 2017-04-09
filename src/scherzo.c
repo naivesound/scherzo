@@ -183,6 +183,9 @@ scherzo_t *scherzo_create(int sample_rate, int max_polyphony) {
 }
 
 int scherzo_load_instrument(scherzo_t *scherzo, int index) {
+  for (int chan = 0; chan < 16; chan++) {
+    fluid_synth_all_sounds_off(scherzo->fluid.synth, chan);
+  }
   if (scherzo->fluid.font > 0) {
     fluid_synth_sfunload(scherzo->fluid.synth, scherzo->fluid.font, 1);
     scherzo->fluid.font = -1;
