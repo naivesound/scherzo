@@ -51,7 +51,7 @@ android: src/scherzo.h src/m.h
 	cp src/vendor/fluidsynth/*.[ch] android/app/src/main/cpp/fluidsynth
 	cd android && ./gradlew build
 
-EMCC_EXPORT := "['_scherzo_create','_scherzo_destroy','_scherzo_write_stereo', '_scherzo_midi', '_scherzo_load_instrument', '_scherzo_tap_bpm']"
+EMCC_EXPORT := "['_scherzo_create','_scherzo_destroy','_scherzo_write_stereo','_scherzo_midi','_scherzo_load_instrument','_scherzo_tap_bpm','_scherzo_looper']"
 
 web: src/scherzo.h src/m.h
 	mkdir -p _tmp/js _tmp/wasm

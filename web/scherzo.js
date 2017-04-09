@@ -47,6 +47,10 @@ class Scherzo {
     Module.ccall('scherzo_load_instrument', 'int', [ 'number', 'number' ],
 		 [ this.scherzo, n ]);
   }
+  looper(n) {
+    Module.ccall('scherzo_looper', 'void', [ 'number', 'number' ],
+		 [ this.scherzo, n ]);
+  }
   tapBPM() {
     Module.ccall('scherzo_tap_bpm', 'void', [ 'number' ], [ this.scherzo ]);
   }
@@ -100,5 +104,18 @@ Module['onRuntimeInitialized'] = function() {
 
 function main() {
   console.log('staring scherzo');
-  window.scherzo = new Scherzo();
+  const scherzo = new Scherzo();
+  // Handle global hotkeys: Enter=looper, Del/BackSpace=cancel, Space=BPM
+  document.onkeydown = (e) => {
+    if (e.keyCode === 32) {
+      scherzo.tapBPM();
+    }
+    if (e.keyCode === 13) {
+      scherzo.looper(0);
+    }
+    if (e.keyCode === 8 || e.keyCode == 46) {
+      scherzo.looper(1);
+    }
+  };
+  window.scherzo = scherzo;
 }
