@@ -28,6 +28,8 @@
 #include "fluid_sys.h"
 #include "fluid_voice.h"
 
+#include "stb_vorbis.h"
+
 /***************************************************************
  *
  *                           SFONT LOADER
@@ -1643,6 +1645,11 @@ fluid_sample_t *new_fluid_sample() {
  * delete_fluid_sample
  */
 int delete_fluid_sample(fluid_sample_t *sample) {
+  if (sample->sampletype & FLUID_SAMPLETYPE_OGG_VORBIS) {
+    if (sample->data) {
+      FLUID_FREE(sample->data);
+    }
+  }
   FLUID_FREE(sample);
   return FLUID_OK;
 }
@@ -1676,6 +1683,51 @@ int fluid_sample_import_sfont(fluid_sample_t *sample, SFSample *sfsample,
   sample->pitchadj = sfsample->pitchadj;
   sample->sampletype = sfsample->sampletype;
 
+  if (sample->sampletype & FLUID_SAMPLETYPE_OGG_VORBIS) {
+    int stb_error = 0;
+    int stb_sample_len = (sample->end + 1 - sample->start);
+    const unsigned char *stb_sample_data =
+	(const unsigned char *)sample->data + sample->start;
+    stb_vorbis *v = stb_vorbis_open_memory(stb_sample_data, stb_sample_len,
+					   &stb_error, NULL);
+    if (v == NULL) {
+      FLUID_LOG(FLUID_ERR, "stb_vorbis_open_memory: %d\n", stb_error);
+    }
+    stb_vorbis_info stb_info = stb_vorbis_get_info(v);
+    unsigned int stb_frames = stb_vorbis_stream_length_in_samples(v);
+
+    if (stb_frames == 0 || stb_info.channels <= 0) {
+      sample->start = sample->end = sample->loopstart = sample->loopend =
+	  sample->valid = 0;
+      sample->data = NULL;
+      stb_vorbis_close(v);
+      return FLUID_OK;
+    }
+
+    short *stb_buffer =
+	(short *)FLUID_MALLOC(stb_frames * stb_info.channels * sizeof(short));
+    if (!stb_buffer) {
+      FLUID_LOG(FLUID_ERR, "out of memory");
+      stb_vorbis_close(v);
+      return FLUID_FAILED;
+    }
+
+    stb_error = stb_vorbis_get_samples_short_interleaved(
+	v, stb_info.channels, stb_buffer, stb_frames);
+
+    stb_vorbis_close(v);
+
+    if (stb_error < 0) {
+      FLUID_FREE(stb_buffer);
+      FLUID_LOG(FLUID_ERR, "stb_vorbis_get_samples_short_interleaved: %d",
+		stb_error);
+      return FLUID_FAILED;
+    }
+
+    sample->data = stb_buffer;
+    sample->start = 0;
+    sample->end = stb_frames - 1;
+  }
   if (sample->sampletype & FLUID_SAMPLETYPE_ROM) {
     sample->valid = 0;
     FLUID_LOG(FLUID_WARN, "Ignoring sample %s: can't use ROM samples",
@@ -1993,12 +2045,11 @@ static int process_info(int size, SFData *sf, fluid_file fd) {
 		  sf->version.major, sf->version.minor);
 	return (FAIL);
       }
-
-      if (sf->version.major > 2) {
+      if (sf->version.major > 3) {
 	FLUID_LOG(
 	    FLUID_WARN,
 	    _("Sound font version is %d.%d which is newer than"
-	      " what this version of FLUID Synth was designed for (v2.0x)"),
+	      " what this version of FLUID Synth was designed for (v3.0x)"),
 	    sf->version.major, sf->version.minor);
 	return (FAIL);
       }
@@ -2882,9 +2933,10 @@ static int fixup_sample(SFData *sf) {
       sam->start = sam->end = sam->loopstart = sam->loopend = 0;
 
       return (OK);
-    } else if (sam->loopend > sam->end || sam->loopstart >= sam->loopend ||
-	       sam->loopstart <=
-		   sam->start) { /* loop is fowled?? (cluck cluck :) */
+    } else if ((sam->sampletype & FLUID_SAMPLETYPE_OGG_VORBIS) == 0 &&
+	       (sam->loopend > sam->end || sam->loopstart >= sam->loopend ||
+		sam->loopstart <=
+		    sam->start)) { /* loop is fowled?? (cluck cluck :) */
       /* can pad loop by 8 samples and ensure at least 4 for loop (2*8+4) */
       if ((sam->end - sam->start) >= 20) {
 	sam->loopstart = sam->start + 8;
