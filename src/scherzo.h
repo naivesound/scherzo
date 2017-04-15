@@ -7,36 +7,52 @@ extern "C" {
 
 #include <fluidsynth.h>
 
-enum {
-  SCHERZO_EVENT_BEAT, /* next beat started */
-  SCHERZO_EVENT_LOOP, /* next loop started */
+#define MIDI_MSG_NOTE_ON 0x90
+#define MIDI_MSG_NOTE_OFF 0x80
+#define MIDI_MSG_CC 0xb0
+#define MIDI_MSG_PITCH_BEND 0xe0
 
-  SCHERZO_EVENT_NOTE_ON,
-  SCHERZO_EVENT_NOTE_OFF,
+#define MIDI_CC_BANK_MSB 0x00       /* Select instrument */
+#define MIDI_CC_VOL 0x07	    /* Master gain */
+#define MIDI_CC_LOOPER_DECAY 0x9    /* Looper decay */
+#define MIDI_CC_LOOPER_GAIN 0x0c    /* Looper gain */
+#define MIDI_CC_METRONOME_GAIN 0x0d /* Metronome gain */
 
-  SCHERZO_EVENT_INSTRUMENT_UNLOAD,
-  SCHERZO_EVENT_INSTRUMENT_LOAD,
-};
+#define MIDI_CC_TAP 0x50    /* Metronome tap button >=0 */
+#define MIDI_CC_LOOP 0x51   /* Looper rec/play/overdub button >=0 */
+#define MIDI_CC_CANCEL 0x52 /* Looper undo/stop/erase button >=0 */
+
+#define MIDI_CC_REVERB 0x5b /* Reverb amount 0..127 */
+#define MIDI_CC_CHORUS 0x5d /* Chorus amount 0..127 */
+
+#define MIDI_CC_SUSTAIN 0x40 /* Sustain pedal */
+
+#define MIDI_CC_GPC1 0x10
+#define MIDI_CC_GPC2 0x11
+#define MIDI_CC_GPC3 0x12
+#define MIDI_CC_GPC4 0x13
+#define MIDI_CC_GPC5 0x50
+#define MIDI_CC_GPC6 0x51
+#define MIDI_CC_GPC7 0x52
+#define MIDI_CC_GPC8 0x53
+
+#define SCHERZO_EVENT_BEAT (1 << 1)
+#define SCHERZO_EVENT_LOOP (1 << 2)
+#define SCHERZO_EVENT_NOTE (1 << 3)
+#define SCHERZO_EVENT_CC (1 << 4)
 
 typedef struct scherzo scherzo_t;
 
-typedef void (*scherzo_notify_fn)(scherzo_t *scherzo, int event, int value,
-				  void *context);
-
-scherzo_t *scherzo_create(int sample_rate, int max_polyphony,
-			  scherzo_notify_fn fn, void *context);
+scherzo_t *scherzo_create(int sample_rate, int max_polyphony);
 void scherzo_destroy(scherzo_t *scherzo);
 
-void scherzo_write_stereo(scherzo_t *scherzo, int16_t *buf, int frames);
+int scherzo_write_stereo(scherzo_t *scherzo, int16_t *buf, int frames);
 int scherzo_midi(scherzo_t *scherzo, int msg, int a, int b);
 
-int scherzo_load_instrument(scherzo_t *scherzo, int index);
+int scherzo_get_note(scherzo_t *scherzo_t, int note);
+int scherzo_get_cc(scherzo_t *scherzo_t, int cc);
 
-int scherzo_tap_bpm(scherzo_t *scherzo);
-void scherzo_looper(scherzo_t *scherzo, int mode);
-void scherzo_set_gain(scherzo_t *scherzo, int gain);
-void scherzo_set_looper_gain(scherzo_t *scherzo, int gain);
-void scherzo_set_decay(scherzo_t *scherzo, int decay);
+int scherzo_load_instrument(scherzo_t *scherzo, int index);
 
 #ifdef __cplusplus
 }

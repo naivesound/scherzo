@@ -36,6 +36,15 @@ static int getch() {
 
 #define SAMPLE_RATE 44100
 
+#define SCHERZO_INCR(scherzo, cc, x)                                           \
+  do {                                                                         \
+    int _v = scherzo_get_cc((scherzo), (cc)) + (x);                            \
+    _v = (_v > 127 ? 127 : (_v < 0 ? 0 : _v));                                 \
+    scherzo_midi(scherzo, MIDI_MSG_CC, cc, _v);                                \
+  } while (0);
+
+#define KNOB(x) ((x) < 64 ? -1 : 1)
+
 int audioCallback(void *out, void *in, unsigned int frames, double time,
 		  RtAudioStreamStatus status, void *arg) {
   (void)in;
@@ -45,7 +54,13 @@ int audioCallback(void *out, void *in, unsigned int frames, double time,
   scherzo_t *scherzo = static_cast<scherzo_t *>(arg);
   int16_t *buf = static_cast<int16_t *>(out);
 
-  scherzo_write_stereo(scherzo, buf, frames);
+  int events = scherzo_write_stereo(scherzo, buf, frames);
+  if (events & SCHERZO_EVENT_BEAT) {
+    printf("tick\n");
+  }
+  if (events & SCHERZO_EVENT_LOOP) {
+    printf("loop\n");
+  }
   return 0;
 }
 
@@ -56,7 +71,34 @@ void midiCallback(double time, std::vector<unsigned char> *msg, void *arg) {
   scherzo_t *scherzo = static_cast<scherzo_t *>(arg);
 
   if (msg->size() == 3) {
-    scherzo_midi(scherzo, msg->at(0), msg->at(1), msg->at(2));
+    int cmd = msg->at(0);
+    int a = msg->at(1);
+    int b = msg->at(2);
+    if ((cmd & 0xf0) == MIDI_MSG_CC) {
+      switch (a) {
+      case 0x10:
+	SCHERZO_INCR(scherzo, MIDI_CC_LOOPER_GAIN, KNOB(b));
+	break;
+      case 0x1c:
+	SCHERZO_INCR(scherzo, MIDI_CC_LOOPER_DECAY, KNOB(b));
+	break;
+      default:
+	scherzo_midi(scherzo, cmd, a, b);
+      }
+    } else if ((cmd & 0xf0) == MIDI_MSG_NOTE_ON) {
+      if (a >= 0 && a < 8) {
+	scherzo_midi(scherzo, MIDI_MSG_CC, MIDI_CC_LOOP, b);
+      } else if (a >= 8 && a < 16) {
+	scherzo_midi(scherzo, MIDI_MSG_CC, MIDI_CC_CANCEL, b);
+      } else if (a >= 16 && a < 24) {
+	scherzo_midi(scherzo, MIDI_MSG_CC, MIDI_CC_TAP, b);
+      } else {
+	scherzo_midi(scherzo, cmd, a, b);
+      }
+    }
+    if ((cmd & 0xf0) == MIDI_MSG_NOTE_OFF) {
+      scherzo_midi(scherzo, cmd, a, b);
+    }
   }
 }
 
@@ -93,14 +135,6 @@ static void midi_poll_thread(scherzo_t *scherzo,
   }
 }
 
-static void scherzo_cb(scherzo_t *scherzo, int event, int value,
-		       void *context) {
-  (void)scherzo;
-  (void)context;
-  printf("event: %d, value: %d\n", event, value);
-  //
-}
-
 int main(int argc, char *argv[]) {
   (void)argc;
   (void)argv;
@@ -109,7 +143,7 @@ int main(int argc, char *argv[]) {
   RtAudio::StreamOptions options;
   RtAudio::StreamParameters params;
 
-  scherzo_t *scherzo = scherzo_create(SAMPLE_RATE, 64, scherzo_cb, NULL);
+  scherzo_t *scherzo = scherzo_create(SAMPLE_RATE, 64);
 
   std::thread midi_poller(midi_poll_thread, scherzo, std::ref(should_exit));
 
@@ -117,76 +151,77 @@ int main(int argc, char *argv[]) {
   params.nChannels = 2;
   options.flags = RTAUDIO_ALSA_USE_DEFAULT;
 
-  unsigned int nframes = 256;
+  unsigned int nframes = 512;
 
   audio.openStream(&params, nullptr, RTAUDIO_SINT16, SAMPLE_RATE, &nframes,
 		   &audioCallback, scherzo, &options);
   audio.startStream();
 
   int bank = 0;
-  int gain = 120;
-  int looper_gain = 120;
-  int decay = 0;
   scherzo_load_instrument(scherzo, bank);
-  scherzo_set_gain(scherzo, gain);
-#define LIMIT(x) ((x) > 127 ? 127 : ((x) < 0 ? 0 : (x)))
-
+  scherzo_midi(scherzo, MIDI_MSG_CC, MIDI_CC_VOL, 80);
   while (!should_exit) {
     int c = getch();
     switch (c) {
     case ',':
-      bank = LIMIT(bank - 1);
+      bank = bank - 1;
+      if (bank < 0) {
+	bank = 0;
+      }
       scherzo_load_instrument(scherzo, bank);
       printf("bank: %d\n", bank);
       break;
     case '.':
-      bank = LIMIT(bank + 1);
+      bank = bank + 1;
       scherzo_load_instrument(scherzo, bank);
       printf("bank: %d\n", bank);
       break;
     case 'v':
-      gain = LIMIT(gain - 1);
-      printf("gain: %d\n", gain);
-      scherzo_set_gain(scherzo, gain);
+      SCHERZO_INCR(scherzo, MIDI_CC_VOL, -1);
+      printf("gain: %d\n", scherzo_get_cc(scherzo, MIDI_CC_VOL));
       break;
     case 'V':
-      gain = LIMIT(gain + 1);
-      printf("gain: %d\n", gain);
-      scherzo_set_gain(scherzo, gain);
+      SCHERZO_INCR(scherzo, MIDI_CC_VOL, 1);
+      printf("gain: %d\n", scherzo_get_cc(scherzo, MIDI_CC_VOL));
       break;
     case 'c':
-      looper_gain = LIMIT(looper_gain - 1);
-      printf("looper_gain: %d\n", looper_gain);
-      scherzo_set_looper_gain(scherzo, looper_gain);
+      SCHERZO_INCR(scherzo, MIDI_CC_LOOPER_GAIN, -1);
+      printf("looper gain: %d\n", scherzo_get_cc(scherzo, MIDI_CC_LOOPER_GAIN));
       break;
     case 'C':
-      looper_gain = LIMIT(looper_gain + 1);
-      printf("looper_gain: %d\n", looper_gain);
-      scherzo_set_looper_gain(scherzo, looper_gain);
+      SCHERZO_INCR(scherzo, MIDI_CC_LOOPER_GAIN, 1);
+      printf("looper gain: %d\n", scherzo_get_cc(scherzo, MIDI_CC_LOOPER_GAIN));
       break;
     case 'm':
-      decay = LIMIT(decay - 1);
-      printf("decay: %d\n", decay);
-      scherzo_set_decay(scherzo, decay);
+      SCHERZO_INCR(scherzo, MIDI_CC_LOOPER_DECAY, -1);
+      printf("looper decay: %d\n",
+	     scherzo_get_cc(scherzo, MIDI_CC_LOOPER_DECAY));
       break;
     case 'M':
-      decay = LIMIT(decay + 1);
-      printf("decay: %d\n", decay);
-      scherzo_set_decay(scherzo, decay);
+      SCHERZO_INCR(scherzo, MIDI_CC_LOOPER_DECAY, -1);
+      printf("looper decay: %d\n",
+	     scherzo_get_cc(scherzo, MIDI_CC_LOOPER_DECAY));
       break;
     case 'b':
-      scherzo_tap_bpm(scherzo);
+      scherzo_midi(scherzo, MIDI_MSG_CC, MIDI_CC_TAP, 1);
       break;
     case 'n':
-      scherzo_looper(scherzo, 0);
+      scherzo_midi(scherzo, MIDI_MSG_CC, MIDI_CC_LOOP, 1);
       break;
     case 'N':
-      scherzo_looper(scherzo, 1);
+      scherzo_midi(scherzo, MIDI_MSG_CC, MIDI_CC_CANCEL, 1);
       break;
     case 'q':
       should_exit = true;
       break;
     }
+    printf("V:%03d | M:%03d | L:%03d D:%03d | R:%03d C:%03d\n",
+	   scherzo_get_cc(scherzo, MIDI_CC_VOL),
+	   scherzo_get_cc(scherzo, MIDI_CC_METRONOME_GAIN),
+	   scherzo_get_cc(scherzo, MIDI_CC_LOOPER_GAIN),
+	   scherzo_get_cc(scherzo, MIDI_CC_LOOPER_DECAY),
+	   scherzo_get_cc(scherzo, MIDI_CC_REVERB),
+	   scherzo_get_cc(scherzo, MIDI_CC_CHORUS));
   }
 
   midi_poller.join();

@@ -26,32 +26,6 @@
 #include <fluid_tuning.c>
 #include <fluid_voice.c>
 
-#define MIDI_MSG_NOTE_ON 0x90
-#define MIDI_MSG_NOTE_OFF 0x80
-#define MIDI_MSG_CC 0xb0
-#define MIDI_MSG_PITCH_BEND 0xe0
-
-#define MIDI_MSG_CLOCK 0xf8
-#define MIDI_MSG_START 0xfa
-#define MIDI_MSG_STOP 0xfc
-
-#define MIDI_CC_BANK_MSB 0x00 /* Used to select instrument */
-#define MIDI_CC_MOD 0x01
-#define MIDI_CC_VOL 0x07 /* Synthesizer gain */
-#define MIDI_CC_GPC1 0x10
-#define MIDI_CC_GPC2 0x11
-#define MIDI_CC_GPC3 0x12
-#define MIDI_CC_GPC4 0x13
-#define MIDI_CC_GPC5 0x50
-#define MIDI_CC_GPC6 0x51
-#define MIDI_CC_GPC7 0x52
-#define MIDI_CC_GPC8 0x53
-
-#define MIDI_CC_SUSTAIN 0x40
-
-#define MIDI_CC_REVERB 91
-#define MIDI_CC_CHORUS 93
-
 #define SCHERZO_BPM_MAX_TAPS 8
 #define SCHERZO_BPM_MAX_IDLE_INTERVAL 2 /* seconds */
 
@@ -68,8 +42,11 @@ typedef int16_t (*metronome_fn_t)(int sample_rate, int frame);
 struct scherzo {
   int sample_rate;
 
-  scherzo_notify_fn notify_fn;
-  void *notify_context;
+  struct {
+    int notes[256];
+    int cc[256];
+    int events;
+  } status;
 
   struct {
     enum schero_looper_state state;
@@ -174,16 +151,16 @@ static int scherzo_scandir(const char *dir, struct dirent ***namelist,
 #define SCHERZO_SF2DIR "./sf2"
 #endif
 
-scherzo_t *scherzo_create(int sample_rate, int max_polyphony,
-			  scherzo_notify_fn notify_fn, void *context) {
+scherzo_t *scherzo_create(int sample_rate, int max_polyphony) {
   scherzo_t *scherzo = (scherzo_t *)malloc(sizeof(*scherzo));
   if (scherzo == NULL) {
     return NULL;
   }
   scherzo->sample_rate = sample_rate;
 
-  scherzo->notify_fn = notify_fn;
-  scherzo->notify_context = context;
+  memset(scherzo->status.notes, 0, sizeof(scherzo->status.notes));
+  memset(scherzo->status.cc, 0, sizeof(scherzo->status.cc));
+  scherzo->status.events = 0;
 
   scherzo->metronome.bpm = 0;
   scherzo->metronome.f = metronome_acoustic;
@@ -208,20 +185,19 @@ scherzo_t *scherzo_create(int sample_rate, int max_polyphony,
   }
   char name_sample_rate[] = "synth.sample-rate";
   char name_polyphony[] = "synth.polyphony";
+  char name_chorus[] = "synth.reverb.active";
+  char name_reverb[] = "synth.chorus.active";
+  char value_no[] = "no";
   fluid_settings_setnum(scherzo->fluid.settings, name_sample_rate, sample_rate);
   fluid_settings_setint(scherzo->fluid.settings, name_polyphony, max_polyphony);
+  fluid_settings_setstr(scherzo->fluid.settings, name_chorus, value_no);
+  fluid_settings_setstr(scherzo->fluid.settings, name_reverb, value_no);
   scherzo->fluid.synth = new_fluid_synth(scherzo->fluid.settings);
   if (scherzo->fluid.synth == NULL) {
     scherzo_destroy(scherzo);
     return NULL;
   }
   return scherzo;
-}
-
-static void scherzo_notify(scherzo_t *scherzo, int event, int value) {
-  if (scherzo->notify_fn != NULL) {
-    scherzo->notify_fn(scherzo, event, value, scherzo->notify_context);
-  }
 }
 
 int scherzo_load_instrument(scherzo_t *scherzo, int index) {
@@ -274,13 +250,6 @@ void scherzo_destroy(scherzo_t *scherzo) {
   }
 }
 
-// void fluid_synth_set_reverb(fluid_synth_t* synth, double roomsize, double
-// damping, double width, double level)
-//
-// void fluid_synth_set_chorus(fluid_synth_t* synth, int nr, double level,
-// double speed, double depth_ms, int type)
-//
-
 static int16_t scherzo_mix(int16_t a, int16_t b) {
   float v = (1.f * ((int)a + (int)b)) / 0x7fff;
   if (v <= -1.25f) {
@@ -304,15 +273,15 @@ static void scherzo_merge_loop(scherzo_t *scherzo) {
   }
 }
 
-void scherzo_looper(scherzo_t *scherzo, int mode) {
+static void scherzo_loop(scherzo_t *scherzo, int cancel) {
   switch (scherzo->looper.state) {
   case SCHERZO_LOOPER_STATE_CLEAR:
-    if (mode == 0) {
+    if (cancel == 0) {
       scherzo->looper.state = SCHERZO_LOOPER_STATE_RECORDING;
     }
     break;
   case SCHERZO_LOOPER_STATE_STOPPED:
-    if (mode == 0) {
+    if (cancel == 0) {
       scherzo->looper.state = SCHERZO_LOOPER_STATE_PLAYING;
     } else {
       scherzo->looper.state = SCHERZO_LOOPER_STATE_CLEAR;
@@ -325,23 +294,23 @@ void scherzo_looper(scherzo_t *scherzo, int mode) {
     }
     break;
   case SCHERZO_LOOPER_STATE_PLAYING:
-    if (mode == 0) {
+    if (cancel == 0) {
       scherzo->looper.state = SCHERZO_LOOPER_STATE_OVERDUBBING;
     } else {
       scherzo->looper.state = SCHERZO_LOOPER_STATE_STOPPED;
     }
     break;
   case SCHERZO_LOOPER_STATE_RECORDING:
-    if (mode == 0) {
+    if (cancel == 0) {
       scherzo_merge_loop(scherzo);
       scherzo->looper.state = SCHERZO_LOOPER_STATE_PLAYING;
     } else {
       scherzo->looper.state = SCHERZO_LOOPER_STATE_STOPPED;
-      scherzo_looper(scherzo, mode);
+      scherzo_loop(scherzo, cancel);
     }
     break;
   case SCHERZO_LOOPER_STATE_OVERDUBBING:
-    if (mode == 0) {
+    if (cancel == 0) {
       scherzo_merge_loop(scherzo);
       scherzo->looper.state = SCHERZO_LOOPER_STATE_PLAYING;
     } else {
@@ -353,7 +322,7 @@ void scherzo_looper(scherzo_t *scherzo, int mode) {
   }
 }
 
-int scherzo_tap_bpm(scherzo_t *scherzo) {
+static int scherzo_tap(scherzo_t *scherzo) {
   int max_interval;
   if (scherzo->metronome.bpm > 0) {
     max_interval = scherzo->sample_rate * 2 * 60 / scherzo->metronome.bpm;
@@ -388,18 +357,21 @@ int scherzo_tap_bpm(scherzo_t *scherzo) {
     int spb = sum / (scherzo->metronome.index);
     scherzo->metronome.bpm = 60 * scherzo->sample_rate / spb;
   }
+  scherzo->metronome.frame = 0;
   return scherzo->metronome.bpm;
 }
 
 void scherzo_note_on(scherzo_t *scherzo, int chan, int key, int velocity) {
-  scherzo_notify(scherzo, SCHERZO_EVENT_NOTE_ON, key);
+  scherzo->status.notes[key] = velocity;
+  scherzo->status.events |= SCHERZO_EVENT_NOTE;
   if (scherzo->fluid.synth != NULL) {
     fluid_synth_noteon(scherzo->fluid.synth, chan, key, velocity);
   }
 }
 
 void scherzo_note_off(scherzo_t *scherzo, int chan, int key) {
-  scherzo_notify(scherzo, SCHERZO_EVENT_NOTE_OFF, key);
+  scherzo->status.notes[key] = 0;
+  scherzo->status.events |= SCHERZO_EVENT_NOTE;
   if (scherzo->fluid.synth != NULL) {
     fluid_synth_noteoff(scherzo->fluid.synth, chan, key);
   }
@@ -411,28 +383,39 @@ void scherzo_pitch_bend(scherzo_t *scherzo, int chan, int bend) {
   }
 }
 
-void scherzo_set_gain(scherzo_t *scherzo, int gain) {
-  if (scherzo->fluid.synth != NULL) {
-    fluid_synth_set_gain(scherzo->fluid.synth, gain / 127.f);
-  }
-}
-
-void scherzo_set_looper_gain(scherzo_t *scherzo, int gain) {
-  scherzo->looper.volume = gain / 127.f;
-}
-
-void scherzo_set_decay(scherzo_t *scherzo, int decay) {
-  scherzo->looper.decay = decay / 127.f;
-}
-
-void scherzo_cc(scherzo_t *scherzo, int chan, int ctrl, int value) {
+static void scherzo_cc(scherzo_t *scherzo, int chan, int ctrl, int value) {
+  scherzo->status.cc[ctrl] = value;
+  scherzo->status.events |= SCHERZO_EVENT_CC;
   if (scherzo->fluid.synth != NULL) {
     switch (ctrl) {
     case MIDI_CC_BANK_MSB:
       scherzo_load_instrument(scherzo, value);
       break;
     case MIDI_CC_VOL:
-      scherzo_set_gain(scherzo, value);
+      if (scherzo->fluid.synth != NULL) {
+	fluid_synth_set_gain(scherzo->fluid.synth, value / 127.f);
+      }
+      break;
+    case MIDI_CC_TAP:
+      if (value > 0) {
+	scherzo_tap(scherzo);
+      }
+      break;
+    case MIDI_CC_LOOP:
+      if (value > 0) {
+	scherzo_loop(scherzo, 0);
+      }
+      break;
+    case MIDI_CC_CANCEL:
+      if (value > 0) {
+	scherzo_loop(scherzo, 1);
+      }
+      break;
+    case MIDI_CC_LOOPER_GAIN:
+      scherzo->looper.volume = value / 127.f;
+      break;
+    case MIDI_CC_LOOPER_DECAY:
+      scherzo->looper.decay = value / 127.f;
       break;
     default:
       if (scherzo->fluid.synth != NULL) {
@@ -458,7 +441,15 @@ int scherzo_midi(scherzo_t *scherzo, int msg, int a, int b) {
   return -1;
 }
 
-void scherzo_write_stereo(scherzo_t *scherzo, int16_t *buf, int frames) {
+int scherzo_get_note(scherzo_t *scherzo, int note) {
+  return scherzo->status.notes[note];
+}
+
+int scherzo_get_cc(scherzo_t *scherzo, int cc) {
+  return scherzo->status.cc[cc];
+}
+
+int scherzo_write_stereo(scherzo_t *scherzo, int16_t *buf, int frames) {
   /* Instrument */
   if (scherzo->fluid.synth != NULL) {
     fluid_synth_write_s16(scherzo->fluid.synth, frames, buf, 0, 2, buf, 1, 2);
@@ -508,7 +499,7 @@ void scherzo_write_stereo(scherzo_t *scherzo, int16_t *buf, int frames) {
     scherzo->looper.pos =
 	(scherzo->looper.pos + frames) % scherzo->looper.frames;
     if (scherzo->looper.pos == 0) {
-      scherzo_notify(scherzo, SCHERZO_EVENT_LOOP, 0);
+      scherzo->status.events |= SCHERZO_EVENT_LOOP;
     }
     break;
   }
@@ -522,7 +513,7 @@ void scherzo_write_stereo(scherzo_t *scherzo, int16_t *buf, int frames) {
     int duration = scherzo->sample_rate / bps;
     for (int i = 0; i < frames; i++) {
       if (scherzo->metronome.frame == 0) {
-	scherzo_notify(scherzo, SCHERZO_EVENT_BEAT, 0);
+	scherzo->status.events |= SCHERZO_EVENT_BEAT;
       }
       int16_t v =
 	  scherzo->metronome.f(scherzo->sample_rate, scherzo->metronome.frame);
@@ -532,4 +523,8 @@ void scherzo_write_stereo(scherzo_t *scherzo, int16_t *buf, int frames) {
       buf[i * 2 + 1] = scherzo_mix(buf[i * 2 + 1], v);
     }
   }
+
+  int events = scherzo->status.events;
+  scherzo->status.events = 0;
+  return events;
 }
