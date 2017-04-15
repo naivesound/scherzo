@@ -5273,18 +5273,18 @@ stb_vorbis *stb_vorbis_open_memory(const unsigned char *data, int len,
 #define PLAYBACK_LEFT 2
 #define PLAYBACK_RIGHT 4
 
-#define L (PLAYBACK_LEFT | PLAYBACK_MONO)
-#define C (PLAYBACK_LEFT | PLAYBACK_RIGHT | PLAYBACK_MONO)
-#define R (PLAYBACK_RIGHT | PLAYBACK_MONO)
+#define SBT_L (PLAYBACK_LEFT | PLAYBACK_MONO)
+#define SBT_C (PLAYBACK_LEFT | PLAYBACK_RIGHT | PLAYBACK_MONO)
+#define SBT_R (PLAYBACK_RIGHT | PLAYBACK_MONO)
 
 static int8 channel_position[7][6] = {
     {0},
-    {C},
-    {L, R},
-    {L, C, R},
-    {L, R, L, R},
-    {L, C, R, L, R},
-    {L, C, R, L, R, C},
+    {SBT_C},
+    {SBT_L, SBT_R},
+    {SBT_L, SBT_C, SBT_R},
+    {SBT_L, SBT_R, SBT_L, SBT_R},
+    {SBT_L, SBT_C, SBT_R, SBT_L, SBT_R},
+    {SBT_L, SBT_C, SBT_R, SBT_L, SBT_R, SBT_C},
 };
 
 #ifndef STB_VORBIS_NO_FAST_SCALED_FLOAT
