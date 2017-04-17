@@ -18,14 +18,11 @@
  * 02111-1307, USA
  */
 
-
 #include "fluid_tuning.h"
-#include "fluid_log.h"
+#include "fluidsynth_priv.h"
 
-
-fluid_tuning_t* new_fluid_tuning(char* name, int bank, int prog)
-{
-  fluid_tuning_t* tuning;
+fluid_tuning_t *new_fluid_tuning(const char *name, int bank, int prog) {
+  fluid_tuning_t *tuning;
   int i;
 
   tuning = FLUID_NEW(fluid_tuning_t);
@@ -50,8 +47,39 @@ fluid_tuning_t* new_fluid_tuning(char* name, int bank, int prog)
   return tuning;
 }
 
-void delete_fluid_tuning(fluid_tuning_t* tuning)
-{
+/* Duplicate a tuning */
+fluid_tuning_t *fluid_tuning_duplicate(fluid_tuning_t *tuning) {
+  fluid_tuning_t *new_tuning;
+  int i;
+
+  new_tuning = FLUID_NEW(fluid_tuning_t);
+
+  if (!new_tuning) {
+    FLUID_LOG(FLUID_PANIC, "Out of memory");
+    return NULL;
+  }
+
+  if (tuning->name) {
+    new_tuning->name = FLUID_STRDUP(tuning->name);
+
+    if (!new_tuning->name) {
+      FLUID_FREE(new_tuning);
+      FLUID_LOG(FLUID_PANIC, "Out of memory");
+      return NULL;
+    }
+  } else
+    new_tuning->name = NULL;
+
+  new_tuning->bank = tuning->bank;
+  new_tuning->prog = tuning->prog;
+
+  for (i = 0; i < 128; i++)
+    new_tuning->pitch[i] = tuning->pitch[i];
+
+  return new_tuning;
+}
+
+void delete_fluid_tuning(fluid_tuning_t *tuning) {
   if (tuning == NULL) {
     return;
   }
@@ -61,8 +89,7 @@ void delete_fluid_tuning(fluid_tuning_t* tuning)
   FLUID_FREE(tuning);
 }
 
-void fluid_tuning_set_name(fluid_tuning_t* tuning, char* name)
-{
+void fluid_tuning_set_name(fluid_tuning_t *tuning, const char *name) {
   if (tuning->name != NULL) {
     FLUID_FREE(tuning->name);
     tuning->name = NULL;
@@ -72,18 +99,14 @@ void fluid_tuning_set_name(fluid_tuning_t* tuning, char* name)
   }
 }
 
-char* fluid_tuning_get_name(fluid_tuning_t* tuning)
-{
-  return tuning->name;
-}
+char *fluid_tuning_get_name(fluid_tuning_t *tuning) { return tuning->name; }
 
-void fluid_tuning_set_key(fluid_tuning_t* tuning, int key, double pitch)
-{
+void fluid_tuning_set_key(fluid_tuning_t *tuning, int key, double pitch) {
   tuning->pitch[key] = pitch;
 }
 
-void fluid_tuning_set_octave(fluid_tuning_t* tuning, double* pitch_deriv)
-{
+void fluid_tuning_set_octave(fluid_tuning_t *tuning,
+                             const double *pitch_deriv) {
   int i;
 
   for (i = 0; i < 128; i++) {
@@ -91,8 +114,7 @@ void fluid_tuning_set_octave(fluid_tuning_t* tuning, double* pitch_deriv)
   }
 }
 
-void fluid_tuning_set_all(fluid_tuning_t* tuning, double* pitch)
-{
+void fluid_tuning_set_all(fluid_tuning_t *tuning, double *pitch) {
   int i;
 
   for (i = 0; i < 128; i++) {
@@ -100,8 +122,7 @@ void fluid_tuning_set_all(fluid_tuning_t* tuning, double* pitch)
   }
 }
 
-void fluid_tuning_set_pitch(fluid_tuning_t* tuning, int key, double pitch)
-{
+void fluid_tuning_set_pitch(fluid_tuning_t *tuning, int key, double pitch) {
   if ((key >= 0) && (key < 128)) {
     tuning->pitch[key] = pitch;
   }

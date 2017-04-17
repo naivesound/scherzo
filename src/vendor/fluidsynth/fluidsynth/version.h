@@ -11,33 +11,34 @@
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * Library General Public License for more details.
- *
+ *  
  * You should have received a copy of the GNU Library General Public
  * License along with this library; if not, write to the Free
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
  * 02111-1307, USA
  */
 
-
-#ifndef _FLUID_IO_H
-#define _FLUID_IO_H
-
-#include "fluid_types.h"
-
-/** Read a line from the input stream.
-
-   \returns 0 if end-of-stream, -1 if error, non zero otherwise
-*/
-int fluid_istream_readline(fluid_istream_t in, char* prompt, char* buf, int len);
+#ifndef _FLUIDSYNTH_VERSION_H
+#define _FLUIDSYNTH_VERSION_H
 
 
-/** Read a line from the input stream.
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-   \returns The number of bytes written. If an error occured, -1 is
-   returned.
-*/
-int fluid_ostream_printf(fluid_ostream_t out, char* format, ...);
+#define FLUIDSYNTH_VERSION       "1.1.0"
+#define FLUIDSYNTH_VERSION_MAJOR 1
+#define FLUIDSYNTH_VERSION_MINOR 1
+#define FLUIDSYNTH_VERSION_MICRO 0
 
 
+FLUIDSYNTH_API void fluid_version(int *major, int *minor, int *micro);
 
-#endif /* _FLUID_IO_H */
+FLUIDSYNTH_API char* fluid_version_str(void);
+
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* _FLUIDSYNTH_VERSION_H */

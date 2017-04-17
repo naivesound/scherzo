@@ -99,6 +99,9 @@ void midiCallback(double time, std::vector<unsigned char> *msg, void *arg) {
     if ((cmd & 0xf0) == MIDI_MSG_NOTE_OFF) {
       scherzo_midi(scherzo, cmd, a, b);
     }
+    if ((cmd & 0xf0) == MIDI_MSG_PITCH_BEND) {
+      scherzo_midi(scherzo, cmd, a, b);
+    }
   }
 }
 
@@ -143,6 +146,8 @@ int main(int argc, char *argv[]) {
   RtAudio::StreamOptions options;
   RtAudio::StreamParameters params;
 
+  setenv("SF2DIR", "./sf2", 0);
+
   scherzo_t *scherzo = scherzo_create(SAMPLE_RATE, 64);
 
   std::thread midi_poller(midi_poll_thread, scherzo, std::ref(should_exit));
@@ -159,7 +164,7 @@ int main(int argc, char *argv[]) {
 
   int bank = 0;
   scherzo_load_instrument(scherzo, bank);
-  scherzo_midi(scherzo, MIDI_MSG_CC, MIDI_CC_VOL, 80);
+  // scherzo_midi(scherzo, MIDI_MSG_CC, MIDI_CC_VOL, 80);
   while (!should_exit) {
     int c = getch();
     switch (c) {

@@ -1,23 +1,25 @@
 #include <dirent.h>
+#include <errno.h>
 #include <unistd.h>
 
 #include "scherzo.h"
 
 #include "m.h"
 
-#include <fluidsynth.h>
+#include <fluidlite.h>
 
 #include <fluid_chan.c>
 #include <fluid_chorus.c>
 #include <fluid_conv.c>
 #include <fluid_defsfont.c>
-#include <fluid_event.c>
+/*#include <fluid_event.c>*/
 #include <fluid_gen.c>
 #include <fluid_hash.c>
-#include <fluid_io.c>
+/*#include <fluid_io.c>*/
+#include <fluid_dsp_float.c>
 #include <fluid_list.c>
-#include <fluid_midi.c>
-#include <fluid_midi_router.c>
+/*#include <fluid_midi.c>*/
+/*#include <fluid_midi_router.c>*/
 #include <fluid_mod.c>
 #include <fluid_rev.c>
 #include <fluid_settings.c>
@@ -76,7 +78,7 @@ struct scherzo {
 };
 
 static int scherzo_sort(const struct dirent **a, const struct dirent **b) {
-  return strcoll((*a)->d_name, (*b)->d_name);
+  return -strcoll((*a)->d_name, (*b)->d_name);
 }
 
 static int scherzo_scandir(const char *dir, struct dirent ***namelist,
@@ -148,7 +150,7 @@ static int scherzo_scandir(const char *dir, struct dirent ***namelist,
 #ifdef __ANDROID__
 #define SCHERZO_SF2DIR "/mnt/sdcard/sf2"
 #else
-#define SCHERZO_SF2DIR "./sf2"
+#define SCHERZO_SF2DIR getenv("SF2DIR")
 #endif
 
 scherzo_t *scherzo_create(int sample_rate, int max_polyphony) {
@@ -187,7 +189,7 @@ scherzo_t *scherzo_create(int sample_rate, int max_polyphony) {
   char name_polyphony[] = "synth.polyphony";
   char name_chorus[] = "synth.reverb.active";
   char name_reverb[] = "synth.chorus.active";
-  char value_no[] = "no";
+  char value_no[] = "yes";
   fluid_settings_setnum(scherzo->fluid.settings, name_sample_rate, sample_rate);
   fluid_settings_setint(scherzo->fluid.settings, name_polyphony, max_polyphony);
   fluid_settings_setstr(scherzo->fluid.settings, name_chorus, value_no);
@@ -218,7 +220,12 @@ int scherzo_load_instrument(scherzo_t *scherzo, int index) {
       printf("scandir: %d, %d\n", r, errno);
       return -1;
     }
-    for (; r > 0; r--, index--) {
+    for (; r > 0; r--) {
+      if (strcmp(entries[r - 1]->d_name, ".") == 0 ||
+	  strcmp(entries[r - 1]->d_name, "..") == 0) {
+	free(entries[r - 1]);
+	continue;
+      }
       if (index == 0) {
 	char path[4096];
 	snprintf(path, sizeof(path) - 1, "%s/%s", SCHERZO_SF2DIR,
@@ -229,6 +236,7 @@ int scherzo_load_instrument(scherzo_t *scherzo, int index) {
 	printf("after load\n");
       }
       free(entries[r - 1]);
+      index--;
     }
     free(entries);
   }

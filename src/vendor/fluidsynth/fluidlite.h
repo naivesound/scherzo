@@ -18,22 +18,32 @@
  * 02111-1307, USA
  */
 
-#ifndef _LFLUIDSYNTH_H
-#define _LFLUIDSYNTH_H
+#ifndef _FLUIDSYNTH_H
+#define _FLUIDSYNTH_H
 
 #include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <math.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <errno.h>
-#include <stdint.h>
-
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+//#if defined(WIN32)
+//#if defined(FLUIDSYNTH_DLL_EXPORTS)
+//#define FLUIDSYNTH_API __declspec(dllexport)
+//#elif defined(FLUIDSYNTH_NOT_A_DLL)
+//#define FLUIDSYNTH_API
+//#else
+//#define FLUIDSYNTH_API __declspec(dllimport)
+//#endif
+
+//#elif defined(MACOS9)
+//#define FLUIDSYNTH_API __declspec(export)
+
+//#else
+//#define FLUIDSYNTH_API
+//#endif
+
+#define FLUIDSYNTH_API
 
 /**
  * @file fluidsynth.h
@@ -67,11 +77,17 @@ extern "C" {
  * SoundFont(R) is a registered trademark of E-mu Systems, Inc.
  */
 
-
-#include "fluid_types.h"
-
-#include "fluid_settings.h"
-#include "fluid_synth.h"
+#include "fluidsynth/types.h"
+#include "fluidsynth/settings.h"
+#include "fluidsynth/synth.h"
+#include "fluidsynth/sfont.h"
+#include "fluidsynth/ramsfont.h"
+#include "fluidsynth/log.h"
+#include "fluidsynth/misc.h"
+#include "fluidsynth/mod.h"
+#include "fluidsynth/gen.h"
+#include "fluidsynth/voice.h"
+#include "fluidsynth/version.h"
 
 
 #ifdef __cplusplus

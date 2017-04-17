@@ -23,13 +23,9 @@
 #ifndef _FLUID_DEFSFONT_H
 #define _FLUID_DEFSFONT_H
 
-#include "fluid_mod.h"
-
-#include "fluid_gen.h"
 #include "fluid_list.h"
-
-#include "fluid_sfont.h"
-#include "fluid_types.h"
+#include "fluidlite.h"
+#include "fluidsynth_priv.h"
 
 /********************************************************************************/
 /********************************************************************************/
@@ -63,11 +59,11 @@ typedef struct _SFMod {  /* Modulator structure */
 } SFMod;
 
 typedef union _SFGenAmount { /* Generator amount structure */
-  signed short sword;	/* signed 16 bit value */
+  signed short sword;        /* signed 16 bit value */
   unsigned short uword;      /* unsigned 16 bit value */
   struct {
-    uint8_t lo; /* low value for ranges */
-    uint8_t hi; /* high value for ranges */
+    unsigned char lo; /* low value for ranges */
+    unsigned char hi; /* high value for ranges */
   } range;
 } SFGenAmount;
 
@@ -83,32 +79,32 @@ typedef struct _SFZone {  /* Sample/instrument zone structure */
 } SFZone;
 
 typedef struct _SFSample {   /* Sample structure */
-  char name[21];	     /* Name of sample */
-  uint8_t samfile;	   /* Loaded sfont/sample buffer = 0/1 */
-  unsigned int start;	/* Offset in sample area to start of sample */
-  unsigned int end;	  /* Offset from start to end of sample,
-			   this is the last point of the
-			   sample, the SF spec has this as the
-			   1st point after, corrected on
-			   load/save */
+  char name[21];             /* Name of sample */
+  unsigned char samfile;     /* Loaded sfont/sample buffer = 0/1 */
+  unsigned int start;        /* Offset in sample area to start of sample */
+  unsigned int end;          /* Offset from start to end of sample,
+                        this is the last point of the
+                        sample, the SF spec has this as the
+                        1st point after, corrected on
+                        load/save */
   unsigned int loopstart;    /* Offset from start to start of loop */
   unsigned int loopend;      /* Offset from start to end of loop,
-				marks the first point after loop,
-				whose sample value is ideally
-				equivalent to loopstart */
+                                marks the first point after loop,
+                                whose sample value is ideally
+                                equivalent to loopstart */
   unsigned int samplerate;   /* Sample rate recorded at */
-  uint8_t origpitch;	 /* root midi key number */
+  unsigned char origpitch;   /* root midi key number */
   signed char pitchadj;      /* pitch correction in cents */
   unsigned short sampletype; /* 1 mono,2 right,4 left,linked 8,0x8000=ROM */
 } SFSample;
 
 typedef struct _SFInst { /* Instrument structure */
-  char name[21];	 /* Name of instrument */
+  char name[21];         /* Name of instrument */
   fluid_list_t *zone;    /* list of instrument zones */
 } SFInst;
 
 typedef struct _SFPreset { /* Preset structure */
-  char name[21];	   /* preset name */
+  char name[21];           /* preset name */
   unsigned short prenum;   /* preset number */
   unsigned short bank;     /* bank number */
   unsigned int libr;       /* Not used (preserved) */
@@ -120,11 +116,11 @@ typedef struct _SFPreset { /* Preset structure */
 /* NOTE: sffd is also used to determine if sound font is new (NULL) */
 typedef struct _SFData {   /* Sound font data structure */
   SFVersion version;       /* sound font version */
-  SFVersion romver;	/* ROM version */
+  SFVersion romver;        /* ROM version */
   unsigned int samplepos;  /* position within sffd of the sample chunk */
   unsigned int samplesize; /* length within sffd of the sample chunk */
-  char *fname;		   /* file name */
-  fluid_file sffd;	 /* loaded sfont file descriptor */
+  char *fname;             /* file name */
+  FILE *sffd;              /* loaded sfont file descriptor */
   fluid_list_t *info;      /* linked list of info strings (1st byte is ID) */
   fluid_list_t *preset;    /* linked list of preset info */
   fluid_list_t *inst;      /* linked list of instrument info */
@@ -230,13 +226,13 @@ typedef enum {
   Gen_Dummy
 } Gen_Type;
 
-#define Gen_MaxValid Gen_Dummy - 1		   /* maximum valid generator */
-#define Gen_Count Gen_Dummy			   /* count of generators */
+#define Gen_MaxValid Gen_Dummy - 1                 /* maximum valid generator */
+#define Gen_Count Gen_Dummy                        /* count of generators */
 #define GenArrSize sizeof(SFGenAmount) * Gen_Count /* gen array size */
 
 /* generator unit type */
 typedef enum {
-  None,		 /* No unit type */
+  None,          /* No unit type */
   Unit_Smpls,    /* in samples */
   Unit_32kSmpls, /* in 32k samples */
   Unit_Cent,     /* in cents (1/100th of a semitone) */
@@ -283,12 +279,12 @@ int gen_validp(int gen);
 
 /* sfont file data structures */
 typedef struct _SFChunk { /* RIFF file chunk structure */
-  unsigned int id;	/* chunk id */
+  unsigned int id;        /* chunk id */
   unsigned int size;      /* size of the following chunk */
 } SFChunk;
 
 typedef struct _SFPhdr {
-  uint8_t name[20];	/* preset name */
+  unsigned char name[20];  /* preset name */
   unsigned short preset;   /* preset number */
   unsigned short bank;     /* bank number */
   unsigned short pbagndx;  /* index into preset bag */
@@ -303,18 +299,18 @@ typedef struct _SFBag {
 } SFBag;
 
 typedef struct _SFIhdr {
-  char name[20];	  /* Name of instrument */
+  char name[20];          /* Name of instrument */
   unsigned short ibagndx; /* Instrument bag index */
 } SFIhdr;
 
 typedef struct _SFShdr {     /* Sample header loading struct */
-  char name[20];	     /* Sample name */
-  unsigned int start;	/* Offset to start of sample */
-  unsigned int end;	  /* Offset to end of sample */
+  char name[20];             /* Sample name */
+  unsigned int start;        /* Offset to start of sample */
+  unsigned int end;          /* Offset to end of sample */
   unsigned int loopstart;    /* Offset to start of loop */
   unsigned int loopend;      /* Offset to end of loop */
   unsigned int samplerate;   /* Sample rate recorded at */
-  uint8_t origpitch;	 /* root midi key number */
+  unsigned char origpitch;   /* root midi key number */
   signed char pitchadj;      /* pitch correction in cents */
   unsigned short samplelink; /* Not used */
   unsigned short sampletype; /* 1 mono,2 right,4 left,linked 8,0x8000=ROM */
@@ -365,7 +361,7 @@ SFData *sfload_file(const char *fname);
 #endif
 
 #define GPOINTER_TO_INT(p) ((uintptr_t)(p))
-#define GINT_TO_POINTER(i) ((void *)(uintptr_t)(i))
+#define GINT_TO_POINTER(i) ((void *)((uintptr_t)i))
 
 char *g_strdup(const char *str);
 
@@ -397,12 +393,12 @@ char *g_strdup(const char *str);
  */
 #define GUINT16_SWAP_LE_BE_CONSTANT(val)                                       \
   ((unsigned short)((((unsigned short)(val) & (unsigned short)0x00ffU) << 8) | \
-		    (((unsigned short)(val) & (unsigned short)0xff00U) >> 8)))
+                    (((unsigned short)(val) & (unsigned short)0xff00U) >> 8)))
 #define GUINT32_SWAP_LE_BE_CONSTANT(val)                                       \
   ((unsigned int)((((unsigned int)(val) & (unsigned int)0x000000ffU) << 24) |  \
-		  (((unsigned int)(val) & (unsigned int)0x0000ff00U) << 8) |   \
-		  (((unsigned int)(val) & (unsigned int)0x00ff0000U) >> 8) |   \
-		  (((unsigned int)(val) & (unsigned int)0xff000000U) >> 24)))
+                  (((unsigned int)(val) & (unsigned int)0x0000ff00U) << 8) |   \
+                  (((unsigned int)(val) & (unsigned int)0x00ff0000U) >> 8) |   \
+                  (((unsigned int)(val) & (unsigned int)0xff000000U) >> 24)))
 
 #define GUINT16_SWAP_LE_BE(val) (GUINT16_SWAP_LE_BE_CONSTANT(val))
 #define GUINT32_SWAP_LE_BE(val) (GUINT32_SWAP_LE_BE_CONSTANT(val))
@@ -452,9 +448,9 @@ enum {
 #define ErrnoEnd ErrWrite
 
 int gerr(int ev, char *fmt, ...);
-int safe_fread(void *buf, int count, fluid_file fd);
-int safe_fwrite(void *buf, int count, fluid_file fd);
-int safe_fseek(fluid_file fd, long ofs, int whence);
+int safe_fread(void *buf, int count, FILE *fd);
+int safe_fwrite(void *buf, int count, FILE *fd);
+int safe_fseek(FILE *fd, long ofs, int whence);
 
 /********************************************************************************/
 /********************************************************************************/
@@ -481,23 +477,23 @@ typedef struct _fluid_inst_zone_t fluid_inst_zone_t;
 fluid_sfloader_t *new_fluid_defsfloader(void);
 int delete_fluid_defsfloader(fluid_sfloader_t *loader);
 fluid_sfont_t *fluid_defsfloader_load(fluid_sfloader_t *loader,
-				      const char *filename);
+                                      const char *filename);
 
 int fluid_defsfont_sfont_delete(fluid_sfont_t *sfont);
 char *fluid_defsfont_sfont_get_name(fluid_sfont_t *sfont);
 fluid_preset_t *fluid_defsfont_sfont_get_preset(fluid_sfont_t *sfont,
-						unsigned int bank,
-						unsigned int prenum);
+                                                unsigned int bank,
+                                                unsigned int prenum);
 void fluid_defsfont_sfont_iteration_start(fluid_sfont_t *sfont);
 int fluid_defsfont_sfont_iteration_next(fluid_sfont_t *sfont,
-					fluid_preset_t *preset);
+                                        fluid_preset_t *preset);
 
 int fluid_defpreset_preset_delete(fluid_preset_t *preset);
 char *fluid_defpreset_preset_get_name(fluid_preset_t *preset);
 int fluid_defpreset_preset_get_banknum(fluid_preset_t *preset);
 int fluid_defpreset_preset_get_num(fluid_preset_t *preset);
 int fluid_defpreset_preset_noteon(fluid_preset_t *preset, fluid_synth_t *synth,
-				  int chan, int key, int vel);
+                                  int chan, int key, int vel);
 
 /*
  * fluid_defsfont_t
@@ -506,40 +502,29 @@ struct _fluid_defsfont_t {
   char *filename; /* the filename of this soundfont */
   unsigned int
       samplepos; /* the position in the file at which the sample data starts */
-  unsigned int samplesize;      /* the size of the sample data */
-  fluid_sampledata *sampledata; /* the sample data, loaded in ram */
-  fluid_list_t *sample;		/* the samples in this soundfont */
-  fluid_defpreset_t *preset;    /* the presets of this soundfont */
+  unsigned int samplesize;   /* the size of the sample data */
+  short *sampledata;         /* the sample data, loaded in ram */
+  fluid_list_t *sample;      /* the samples in this soundfont */
+  fluid_defpreset_t *preset; /* the presets of this soundfont */
 
   fluid_preset_t iter_preset;  /* preset interface used in the iteration */
   fluid_defpreset_t *iter_cur; /* the current preset in the iteration */
 };
-
-#ifdef FLUID_SAMPLE_READ_DISK
-
-void fluid_sampledata_reset(fluid_sampledata_t *);
-void fluid_sampledata_init(fluid_sampledata_t *, fluid_file);
-void fluid_sampledata_read_chunk(fluid_sampledata_t *, uint32_t, uint32_t);
-void fluid_sampledata_read(fluid_sampledata_t *, uint32_t, uint32_t, uint32_t,
-			   uint32_t);
-void fluid_sampledata_clean(fluid_sfont_t *sfont, uint32_t);
-
-#endif
 
 fluid_defsfont_t *new_fluid_defsfont(void);
 int delete_fluid_defsfont(fluid_defsfont_t *sfont);
 int fluid_defsfont_load(fluid_defsfont_t *sfont, const char *file);
 char *fluid_defsfont_get_name(fluid_defsfont_t *sfont);
 fluid_defpreset_t *fluid_defsfont_get_preset(fluid_defsfont_t *sfont,
-					     unsigned int bank,
-					     unsigned int prenum);
+                                             unsigned int bank,
+                                             unsigned int prenum);
 void fluid_defsfont_iteration_start(fluid_defsfont_t *sfont);
 int fluid_defsfont_iteration_next(fluid_defsfont_t *sfont,
-				  fluid_preset_t *preset);
+                                  fluid_preset_t *preset);
 int fluid_defsfont_load_sampledata(fluid_defsfont_t *sfont);
 int fluid_defsfont_add_sample(fluid_defsfont_t *sfont, fluid_sample_t *sample);
 int fluid_defsfont_add_preset(fluid_defsfont_t *sfont,
-			      fluid_defpreset_t *preset);
+                              fluid_defpreset_t *preset);
 fluid_sample_t *fluid_defsfont_get_sample(fluid_defsfont_t *sfont, char *s);
 
 /*
@@ -547,30 +532,30 @@ fluid_sample_t *fluid_defsfont_get_sample(fluid_defsfont_t *sfont, char *s);
  */
 struct _fluid_defpreset_t {
   fluid_defpreset_t *next;
-  fluid_defsfont_t *sfont;	  /* the soundfont this preset belongs to */
-  char name[21];		    /* the name of the preset */
-  unsigned int bank;		    /* the bank number */
-  unsigned int num;		    /* the preset number */
+  fluid_defsfont_t *sfont;          /* the soundfont this preset belongs to */
+  char name[21];                    /* the name of the preset */
+  unsigned int bank;                /* the bank number */
+  unsigned int num;                 /* the preset number */
   fluid_preset_zone_t *global_zone; /* the global zone of the preset */
-  fluid_preset_zone_t *zone;	/* the chained list of preset zones */
+  fluid_preset_zone_t *zone;        /* the chained list of preset zones */
 };
 
 fluid_defpreset_t *new_fluid_defpreset(fluid_defsfont_t *sfont);
 int delete_fluid_defpreset(fluid_defpreset_t *preset);
 fluid_defpreset_t *fluid_defpreset_next(fluid_defpreset_t *preset);
 int fluid_defpreset_import_sfont(fluid_defpreset_t *preset, SFPreset *sfpreset,
-				 fluid_defsfont_t *sfont);
+                                 fluid_defsfont_t *sfont);
 int fluid_defpreset_set_global_zone(fluid_defpreset_t *preset,
-				    fluid_preset_zone_t *zone);
+                                    fluid_preset_zone_t *zone);
 int fluid_defpreset_add_zone(fluid_defpreset_t *preset,
-			     fluid_preset_zone_t *zone);
+                             fluid_preset_zone_t *zone);
 fluid_preset_zone_t *fluid_defpreset_get_zone(fluid_defpreset_t *preset);
 fluid_preset_zone_t *fluid_defpreset_get_global_zone(fluid_defpreset_t *preset);
 int fluid_defpreset_get_banknum(fluid_defpreset_t *preset);
 int fluid_defpreset_get_num(fluid_defpreset_t *preset);
 char *fluid_defpreset_get_name(fluid_defpreset_t *preset);
 int fluid_defpreset_noteon(fluid_defpreset_t *preset, fluid_synth_t *synth,
-			   int chan, int key, int vel);
+                           int chan, int key, int vel);
 
 /*
  * fluid_preset_zone
@@ -591,7 +576,7 @@ fluid_preset_zone_t *new_fluid_preset_zone(char *name);
 int delete_fluid_preset_zone(fluid_preset_zone_t *zone);
 fluid_preset_zone_t *fluid_preset_zone_next(fluid_preset_zone_t *preset);
 int fluid_preset_zone_import_sfont(fluid_preset_zone_t *zone, SFZone *sfzone,
-				   fluid_defsfont_t *sfont);
+                                   fluid_defsfont_t *sfont);
 int fluid_preset_zone_inside_range(fluid_preset_zone_t *zone, int key, int vel);
 fluid_inst_t *fluid_preset_zone_get_inst(fluid_preset_zone_t *zone);
 
@@ -607,7 +592,7 @@ struct _fluid_inst_t {
 fluid_inst_t *new_fluid_inst(void);
 int delete_fluid_inst(fluid_inst_t *inst);
 int fluid_inst_import_sfont(fluid_inst_t *inst, SFInst *sfinst,
-			    fluid_defsfont_t *sfont);
+                            fluid_defsfont_t *sfont);
 int fluid_inst_set_global_zone(fluid_inst_t *inst, fluid_inst_zone_t *zone);
 int fluid_inst_add_zone(fluid_inst_t *inst, fluid_inst_zone_t *zone);
 fluid_inst_zone_t *fluid_inst_get_zone(fluid_inst_t *inst);
@@ -632,14 +617,14 @@ fluid_inst_zone_t *new_fluid_inst_zone(char *name);
 int delete_fluid_inst_zone(fluid_inst_zone_t *zone);
 fluid_inst_zone_t *fluid_inst_zone_next(fluid_inst_zone_t *zone);
 int fluid_inst_zone_import_sfont(fluid_inst_zone_t *zone, SFZone *sfzone,
-				 fluid_defsfont_t *sfont);
+                                 fluid_defsfont_t *sfont);
 int fluid_inst_zone_inside_range(fluid_inst_zone_t *zone, int key, int vel);
 fluid_sample_t *fluid_inst_zone_get_sample(fluid_inst_zone_t *zone);
 
 fluid_sample_t *new_fluid_sample(void);
 int delete_fluid_sample(fluid_sample_t *sample);
 int fluid_sample_import_sfont(fluid_sample_t *sample, SFSample *sfsample,
-			      fluid_defsfont_t *sfont);
+                              fluid_defsfont_t *sfont);
 int fluid_sample_in_rom(fluid_sample_t *sample);
 
 #endif /* _FLUID_SFONT_H */

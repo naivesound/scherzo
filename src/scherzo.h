@@ -5,7 +5,8 @@
 extern "C" {
 #endif
 
-#include <fluidsynth.h>
+#include <fluidlite.h>
+#include <stdint.h>
 
 #define MIDI_MSG_NOTE_ON 0x90
 #define MIDI_MSG_NOTE_OFF 0x80

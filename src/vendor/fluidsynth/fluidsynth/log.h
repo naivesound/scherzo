@@ -18,15 +18,14 @@
  * 02111-1307, USA
  */
 
-#ifndef _FLUID_LOG_H
-#define _FLUID_LOG_H
+#ifndef _FLUIDSYNTH_LOG_H
+#define _FLUIDSYNTH_LOG_H
 
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#include "fluid_types.h"
 
 /**
  * @file log.h
@@ -69,12 +68,12 @@ enum fluid_log_level {
  */
 typedef void (*fluid_log_function_t)(int level, char* message, void* data);
 
-
+FLUIDSYNTH_API 
 fluid_log_function_t fluid_set_log_function(int level, fluid_log_function_t fun, void* data);
 
-void fluid_default_log_function(int level, char* message, void* data);
+FLUIDSYNTH_API void fluid_default_log_function(int level, char* message, void* data);
 
-int fluid_log(int level, char * fmt, ...);
+FLUIDSYNTH_API int fluid_log(int level, char * fmt, ...);
 
 
 #ifdef __cplusplus
