@@ -138,6 +138,14 @@ static void midi_poll_thread(scherzo_t *scherzo,
   }
 }
 
+static inline const char *sf2dir() {
+  const char *dir = getenv("SF2DIR");
+  if (dir == NULL) {
+    return "./sf2";
+  }
+  return dir;
+}
+
 int main(int argc, char *argv[]) {
   (void)argc;
   (void)argv;
@@ -145,8 +153,6 @@ int main(int argc, char *argv[]) {
   RtAudio audio;
   RtAudio::StreamOptions options;
   RtAudio::StreamParameters params;
-
-  setenv("SF2DIR", "./sf2", 0);
 
   scherzo_t *scherzo = scherzo_create(SAMPLE_RATE, 64);
 
@@ -163,8 +169,8 @@ int main(int argc, char *argv[]) {
   audio.startStream();
 
   int bank = 0;
-  scherzo_load_instrument(scherzo, bank);
-  // scherzo_midi(scherzo, MIDI_MSG_CC, MIDI_CC_VOL, 80);
+  scherzo_load_instrument(scherzo, sf2dir(), bank);
+  scherzo_midi(scherzo, MIDI_MSG_CC, MIDI_CC_VOL, 80);
   while (!should_exit) {
     int c = getch();
     switch (c) {
@@ -173,12 +179,12 @@ int main(int argc, char *argv[]) {
       if (bank < 0) {
 	bank = 0;
       }
-      scherzo_load_instrument(scherzo, bank);
+      scherzo_load_instrument(scherzo, sf2dir(), bank);
       printf("bank: %d\n", bank);
       break;
     case '.':
       bank = bank + 1;
-      scherzo_load_instrument(scherzo, bank);
+      scherzo_load_instrument(scherzo, sf2dir(), bank);
       printf("bank: %d\n", bank);
       break;
     case 'v':

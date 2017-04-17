@@ -443,58 +443,6 @@ fluid_sample_t *fluid_defsfont_get_sample(fluid_defsfont_t *sfont, char *s) {
     sample = (fluid_sample_t *)fluid_list_get(list);
 
     if (FLUID_STRCMP(sample->name, s) == 0) {
-
-      if (sample->sampletype & FLUID_SAMPLETYPE_OGG_VORBIS) {
-#if 0 // SF3_SUPPORT
-        short *sampledata_ogg = NULL;
-        int sampledata_size = 0;
-
-        OggVorbis_File vf;
-        vorbisData.pos = 0;
-        vorbisData.data = (char *)sample->data + sample->start;
-        vorbisData.datasize = (sample->end + 1 - sample->start);
-        if (ov_open_callbacks(&vorbisData, &vf, 0, 0, ovCallbacks) == 0) {
-          char buffer[4096];
-          int numberRead = 0;
-          int section = 0;
-          do {
-            numberRead = ov_read(&vf, buffer, 4096, 0, 2, 1, &section);
-            sampledata_ogg =
-                realloc(sampledata_ogg, sampledata_size + numberRead);
-            if (numberRead > 0) {
-              memcpy((char *)(sampledata_ogg) + sampledata_size, buffer,
-                     numberRead);
-              sampledata_size += numberRead;
-            }
-          } while (numberRead > 0);
-
-          ov_clear(&vf);
-        }
-
-        // point sample data to uncompressed data stream
-        sample->data = sampledata_ogg;
-        sample->start = 0;
-        sample->end = sampledata_size - 1;
-
-        /* loop is fowled?? (cluck cluck :) */
-        if (sample->loopend > sample->end ||
-            sample->loopstart >= sample->loopend ||
-            sample->loopstart <= sample->start) {
-          /* can pad loop by 8 samples and ensure at least 4 for loop (2*8+4) */
-          if ((sample->end - sample->start) >= 20) {
-            sample->loopstart = sample->start + 8;
-            sample->loopend = sample->end - 8;
-          } else /* loop is fowled, sample is tiny (can't pad 8 samples) */
-          {
-            sample->loopstart = sample->start + 1;
-            sample->loopend = sample->end - 1;
-          }
-        }
-        sample->sampletype = FLUID_SAMPLETYPE_OGG_VORBIS_UNPACKED;
-        fluid_voice_optimize_sample(sample);
-#endif
-      }
-
       return sample;
     }
   }

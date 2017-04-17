@@ -1,5 +1,6 @@
 #include <dirent.h>
 #include <errno.h>
+#include <stdlib.h>
 #include <unistd.h>
 
 #include "scherzo.h"
@@ -12,14 +13,10 @@
 #include <fluid_chorus.c>
 #include <fluid_conv.c>
 #include <fluid_defsfont.c>
-/*#include <fluid_event.c>*/
+#include <fluid_dsp_float.c>
 #include <fluid_gen.c>
 #include <fluid_hash.c>
-/*#include <fluid_io.c>*/
-#include <fluid_dsp_float.c>
 #include <fluid_list.c>
-/*#include <fluid_midi.c>*/
-/*#include <fluid_midi_router.c>*/
 #include <fluid_mod.c>
 #include <fluid_rev.c>
 #include <fluid_settings.c>
@@ -147,12 +144,6 @@ static int scherzo_scandir(const char *dir, struct dirent ***namelist,
   return count;
 }
 
-#ifdef __ANDROID__
-#define SCHERZO_SF2DIR "/mnt/sdcard/sf2"
-#else
-#define SCHERZO_SF2DIR getenv("SF2DIR")
-#endif
-
 scherzo_t *scherzo_create(int sample_rate, int max_polyphony) {
   scherzo_t *scherzo = (scherzo_t *)malloc(sizeof(*scherzo));
   if (scherzo == NULL) {
@@ -189,11 +180,11 @@ scherzo_t *scherzo_create(int sample_rate, int max_polyphony) {
   char name_polyphony[] = "synth.polyphony";
   char name_chorus[] = "synth.reverb.active";
   char name_reverb[] = "synth.chorus.active";
-  char value_no[] = "yes";
+  char value_yes[] = "yes";
   fluid_settings_setnum(scherzo->fluid.settings, name_sample_rate, sample_rate);
   fluid_settings_setint(scherzo->fluid.settings, name_polyphony, max_polyphony);
-  fluid_settings_setstr(scherzo->fluid.settings, name_chorus, value_no);
-  fluid_settings_setstr(scherzo->fluid.settings, name_reverb, value_no);
+  fluid_settings_setstr(scherzo->fluid.settings, name_chorus, value_yes);
+  fluid_settings_setstr(scherzo->fluid.settings, name_reverb, value_yes);
   scherzo->fluid.synth = new_fluid_synth(scherzo->fluid.settings);
   if (scherzo->fluid.synth == NULL) {
     scherzo_destroy(scherzo);
@@ -202,7 +193,7 @@ scherzo_t *scherzo_create(int sample_rate, int max_polyphony) {
   return scherzo;
 }
 
-int scherzo_load_instrument(scherzo_t *scherzo, int index) {
+int scherzo_load_instrument(scherzo_t *scherzo, const char *dir, int index) {
   for (int chan = 0; chan < 16; chan++) {
     fluid_synth_all_sounds_off(scherzo->fluid.synth, chan);
   }
@@ -215,7 +206,7 @@ int scherzo_load_instrument(scherzo_t *scherzo, int index) {
   if (index >= 0) {
     int r;
     struct dirent **entries;
-    r = scherzo_scandir(SCHERZO_SF2DIR, &entries, 0, scherzo_sort);
+    r = scherzo_scandir(dir, &entries, 0, scherzo_sort);
     if (r < 0) {
       printf("scandir: %d, %d\n", r, errno);
       return -1;
@@ -228,8 +219,7 @@ int scherzo_load_instrument(scherzo_t *scherzo, int index) {
       }
       if (index == 0) {
 	char path[4096];
-	snprintf(path, sizeof(path) - 1, "%s/%s", SCHERZO_SF2DIR,
-		 entries[r - 1]->d_name);
+	snprintf(path, sizeof(path) - 1, "%s/%s", dir, entries[r - 1]->d_name);
 	printf("loading sf2 at %s\n", path);
 	printf("before load\n");
 	scherzo->fluid.font = fluid_synth_sfload(scherzo->fluid.synth, path, 1);
@@ -245,7 +235,7 @@ int scherzo_load_instrument(scherzo_t *scherzo, int index) {
 
 void scherzo_destroy(scherzo_t *scherzo) {
   if (scherzo != NULL) {
-    scherzo_load_instrument(scherzo, -1);
+    scherzo_load_instrument(scherzo, NULL, -1);
     if (scherzo->fluid.synth != NULL) {
       delete_fluid_synth(scherzo->fluid.synth);
       scherzo->fluid.synth = NULL;
@@ -396,9 +386,6 @@ static void scherzo_cc(scherzo_t *scherzo, int chan, int ctrl, int value) {
   scherzo->status.events |= SCHERZO_EVENT_CC;
   if (scherzo->fluid.synth != NULL) {
     switch (ctrl) {
-    case MIDI_CC_BANK_MSB:
-      scherzo_load_instrument(scherzo, value);
-      break;
     case MIDI_CC_VOL:
       if (scherzo->fluid.synth != NULL) {
 	fluid_synth_set_gain(scherzo->fluid.synth, value / 127.f);
@@ -424,6 +411,17 @@ static void scherzo_cc(scherzo_t *scherzo, int chan, int ctrl, int value) {
       break;
     case MIDI_CC_LOOPER_DECAY:
       scherzo->looper.decay = value / 127.f;
+      break;
+    case MIDI_CC_REVERB:
+      fluid_synth_set_reverb(
+	  scherzo->fluid.synth, FLUID_REVERB_DEFAULT_ROOMSIZE,
+	  FLUID_REVERB_DEFAULT_DAMP, FLUID_REVERB_DEFAULT_WIDTH, value / 127.f);
+      break;
+    case MIDI_CC_CHORUS:
+      fluid_synth_set_chorus(scherzo->fluid.synth, FLUID_CHORUS_DEFAULT_N,
+			     value / 13.f, FLUID_CHORUS_DEFAULT_SPEED,
+			     FLUID_CHORUS_DEFAULT_DEPTH,
+			     FLUID_CHORUS_DEFAULT_TYPE);
       break;
     default:
       if (scherzo->fluid.synth != NULL) {
