@@ -3,8 +3,8 @@ VERSION = 0.0.0
 SCHERZO_BIN ?= scherzo
 
 CPPFLAGS = -DVERSION=\"${VERSION}\"
-CFLAGS += -Wall -Wextra -pedantic -std=c99
-CXXFLAGS += -Wall -Wextra -pedantic -std=c++0x
+CFLAGS += -Wall -Wextra -pedantic -std=c99 -g
+CXXFLAGS += -Wall -Wextra -pedantic -std=c++0x -g
 
 ifeq ($(alsa),1)
 	CXXFLAGS += -D__LINUX_ALSA__
@@ -45,10 +45,11 @@ lint:
 
 src/main.o: src/scherzo.h src/m.h
 
-android: src/scherzo.h src/m.h
-	mkdir -p android/app/src/main/cpp/fluidsynth
+android: src/scherzo.h src/scherzo.c src/m.h
+	mkdir -p android/app/src/main/cpp/fluidsynth/fluidsynth
 	cp $^ android/app/src/main/cpp
 	cp src/vendor/fluidsynth/*.[ch] android/app/src/main/cpp/fluidsynth
+	cp src/vendor/fluidsynth/fluidsynth/*.h android/app/src/main/cpp/fluidsynth/fluidsynth
 	cd android && ./gradlew build
 
 EMCC_EXPORT := "['_scherzo_create','_scherzo_destroy','_scherzo_write_stereo','_scherzo_midi','_scherzo_load_instrument','_scherzo_tap_bpm','_scherzo_looper']"
