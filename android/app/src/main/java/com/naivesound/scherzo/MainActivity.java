@@ -32,11 +32,11 @@ public class MainActivity extends Activity {
         layout.setOrientation(LinearLayout.VERTICAL);
 
         Button bpmButton = new Button(this);
-        bpmButton.setText("BPM");
+        bpmButton.setText("Tap");
         bpmButton.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
                 if (mService != null) {
-                    mService.tapBPM();
+                    mService.tap();
                 }
             }
         });
@@ -47,18 +47,18 @@ public class MainActivity extends Activity {
         looperButton.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
                 if (mService != null) {
-                    mService.looperCommand(true);
+                    mService.loop();
                 }
             }
         });
         layout.addView(looperButton);
 
         Button looperExtButton = new Button(this);
-        looperExtButton.setText("Looper (ext)");
+        looperExtButton.setText("Cancel");
         looperExtButton.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
                 if (mService != null) {
-                    mService.looperCommand(false);
+                    mService.cancelLoop();
                 }
             }
         });
@@ -66,19 +66,24 @@ public class MainActivity extends Activity {
 
         setContentView(layout);
 
-
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            if (checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE)  != PackageManager.PERMISSION_GRANTED) {
-                requestPermissions(new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, PERMISSION_REQEUST_ID);
+            if (checkSelfPermission(
+                    Manifest.permission.WRITE_EXTERNAL_STORAGE) !=
+                PackageManager.PERMISSION_GRANTED) {
+                requestPermissions(
+                    new String[] {Manifest.permission.WRITE_EXTERNAL_STORAGE},
+                    PERMISSION_REQEUST_ID);
             }
         }
     }
 
-    public void onRequestPermissionsResult(int requestCode, String permissions[], int[] grantResults) {
+    public void onRequestPermissionsResult(int requestCode,
+                                           String permissions[],
+                                           int[] grantResults) {
         switch (requestCode) {
-            case PERMISSION_REQEUST_ID:
-                //
-                break;
+        case PERMISSION_REQEUST_ID:
+            //
+            break;
         }
     }
 
@@ -98,8 +103,10 @@ public class MainActivity extends Activity {
 
     private ServiceConnection mConnection = new ServiceConnection() {
         @Override
-        public void onServiceConnected(ComponentName className, IBinder service) {
-            ScherzoService.ScherzoBinder binder = (ScherzoService.ScherzoBinder) service;
+        public void onServiceConnected(ComponentName className,
+                                       IBinder service) {
+            ScherzoService.ScherzoBinder binder =
+                (ScherzoService.ScherzoBinder)service;
             mService = binder.getService();
             mService.handleMIDI();
         }
