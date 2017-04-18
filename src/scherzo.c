@@ -406,6 +406,9 @@ static void scherzo_cc(scherzo_t *scherzo, int chan, int ctrl, int value) {
 	scherzo_loop(scherzo, 1);
       }
       break;
+    case MIDI_CC_METRONOME_GAIN:
+      scherzo->metronome.volume = value / 127.f;
+      break;
     case MIDI_CC_LOOPER_GAIN:
       scherzo->looper.volume = value / 127.f;
       break;
