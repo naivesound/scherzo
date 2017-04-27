@@ -180,7 +180,7 @@ scherzo_t *scherzo_create(int sample_rate, int max_polyphony) {
   char name_polyphony[] = "synth.polyphony";
   char name_chorus[] = "synth.reverb.active";
   char name_reverb[] = "synth.chorus.active";
-  char value_yes[] = "yes";
+  char value_yes[] = "no";
   fluid_settings_setnum(scherzo->fluid.settings, name_sample_rate, sample_rate);
   fluid_settings_setint(scherzo->fluid.settings, name_polyphony, max_polyphony);
   fluid_settings_setstr(scherzo->fluid.settings, name_chorus, value_yes);
