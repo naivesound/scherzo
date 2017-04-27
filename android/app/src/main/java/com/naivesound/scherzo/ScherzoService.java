@@ -2,7 +2,9 @@ package com.naivesound.scherzo;
 
 import android.annotation.TargetApi;
 import android.app.Service;
+import android.content.Context;
 import android.content.Intent;
+import android.media.AudioManager;
 import android.media.midi.MidiDevice;
 import android.media.midi.MidiDeviceInfo;
 import android.media.midi.MidiDeviceStatus;
@@ -17,13 +19,17 @@ import android.util.Log;
 
 public class ScherzoService extends Service {
 
-    private final Scherzo mScherzo;
+    private Scherzo mScherzo = null;
     private final IBinder mBinder = new ScherzoBinder();
     private final Handler mHandler = new Handler();
 
-    public ScherzoService() {
-        //        mScherzo = new Scherzo(44100);
-        mScherzo = new Scherzo(48000);
+    @Override
+    public int onStartCommand(Intent intent, int flags, int startId) {
+        AudioManager am = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+        int sampleRate = Integer.parseInt(am.getProperty(AudioManager.PROPERTY_OUTPUT_SAMPLE_RATE));
+        int framesPerBuffer = Integer.parseInt(am.getProperty(AudioManager.PROPERTY_OUTPUT_FRAMES_PER_BUFFER));
+        mScherzo = new Scherzo(sampleRate, framesPerBuffer, 32);
+        return super.onStartCommand(intent, flags, startId);
     }
 
     @TargetApi(Build.VERSION_CODES.M)

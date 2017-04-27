@@ -5,6 +5,7 @@ import android.graphics.Typeface;
 import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.Display;
+import android.view.MotionEvent;
 import android.view.WindowManager;
 import android.widget.LinearLayout;
 
@@ -36,7 +37,10 @@ public class ScherzoView extends RenderableView {
 
             buttons();
             knobs();
-            keyboard();
+            v(PianoKeyboard.class, () -> {
+                size(FILL, 0);
+                weight(2f);
+            });
         });
     }
 
@@ -52,9 +56,12 @@ public class ScherzoView extends RenderableView {
                 weight(1f);
                 margin(dip(10), 0);
                 text("TAP");
-                onClick(v -> {
-                    Log.d(TAG, "TAP click");
-                    App.getService().tap();
+                onTouch((v, e) -> {
+                    if (e.getActionMasked() == MotionEvent.ACTION_DOWN) {
+                        Log.d(TAG, "TAP click");
+                        App.getService().tap();
+                    }
+                    return false;
                 });
             });
 
@@ -63,9 +70,12 @@ public class ScherzoView extends RenderableView {
                 weight(1f);
                 margin(dip(10), 0);
                 text("LOOP");
-                onClick(v -> {
-                    Log.d(TAG, "LOOP click");
-                    App.getService().loop();
+                onTouch((v, e) -> {
+                    if (e.getActionMasked() == MotionEvent.ACTION_DOWN) {
+                        Log.d(TAG, "LOOP click");
+                        App.getService().loop();
+                    }
+                    return false;
                 });
             });
 
@@ -74,9 +84,12 @@ public class ScherzoView extends RenderableView {
                 weight(1f);
                 margin(dip(10), 0);
                 text("CANCEL");
-                onClick(v -> {
-                    Log.d(TAG, "CANCEL click");
-                    App.getService().cancelLoop();
+                onTouch((v, e) -> {
+                    if (e.getActionMasked() == MotionEvent.ACTION_DOWN) {
+                        Log.d(TAG, "CANCEL click");
+                        App.getService().cancelLoop();
+                    }
+                    return false;
                 });
 
             });
@@ -175,50 +188,6 @@ public class ScherzoView extends RenderableView {
                         Log.d(TAG, "SLIDER4: progress="+progress);
                     });
                 });
-            });
-        });
-    }
-
-    private void keyboard() {
-        frameLayout(() -> {
-            size(FILL, 0);
-            weight(2f);
-
-            linearLayout(() -> {
-                size(FILL, FILL);
-
-                for (int i = 0; i < 7; i++) {
-                    final int index = i;
-                    int tag = 48 + index * 2;
-                    v(MidiKeyView.class, () -> {
-                        size(0, FILL);
-                        tag(index > 2 ? tag-1 : tag);
-                        weight(1f);
-                        margin(dip(3), dip(3), (index == 6 ? dip(3) : 0), dip(3));
-                        backgroundColor(0xffe1e1e1);
-                    });
-                }
-            });
-
-            int keyWidth = mWidth/7;
-            frameLayout(() -> {
-                size(FILL, mHeight/4);
-
-                for (int i = 0; i < 5; i++) {
-                    final int index = i;
-                    int marginLeft = dip(3) + keyWidth*i + keyWidth/2;
-                    if (i >= 2) {
-                        marginLeft += keyWidth;
-                    }
-                    int finalMarginLeft = marginLeft;
-                    int tag = 49 + i * 2;
-                    v(MidiKeyView.class, () -> {
-                        size(keyWidth-2*dip(3), FILL);
-                        tag(index > 1 ? tag+1 : tag);
-                        margin(finalMarginLeft, dip(3), dip(3), 0);
-                        backgroundColor(0xff333333);
-                    });
-                }
             });
         });
     }

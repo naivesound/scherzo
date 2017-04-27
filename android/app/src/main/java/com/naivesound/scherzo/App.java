@@ -35,7 +35,6 @@ public class App extends Application {
         }
         Intent intent = new Intent(sInstance, ScherzoService.class);
         sInstance.stopService(intent);
-
     }
 
     private ServiceConnection serviceConnection = new ServiceConnection() {

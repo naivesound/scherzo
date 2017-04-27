@@ -5,7 +5,9 @@ public class Scherzo {
 
     private long mRef;
 
-    public Scherzo(int sampleRate) { mRef = create(sampleRate); }
+    public Scherzo(int sampleRate, int framesPerBuffer, int maxPoly) {
+        mRef = create(sampleRate, framesPerBuffer, maxPoly);
+    }
 
     public void dispose() {
         destroy(mRef);
@@ -23,9 +25,7 @@ public class Scherzo {
     public void midi(byte msg, byte a, byte b) {
         midi(mRef, msg & 0xff, a & 0xff, b & 0xff);
     }
-    private native long create(int sampleRate);
+    private native long create(int sampleRate, int framesPerBuffer, int maxPoly);
     private native void destroy(long ref);
     private native void midi(long ref, int msg, int a, int b);
-
-    // TODO: get note, get CC
 }
