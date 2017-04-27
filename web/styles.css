@@ -1,0 +1,85 @@
+* {
+	margin: 0;
+	padding: 0;
+	box-sizing: border-box;
+	user-select: none;
+}
+
+input[type=range] {
+	display: block;
+}
+
+.container {
+	/*width: 700px;*/
+	margin: 0 auto;
+}
+
+.piano {
+	display: flex;
+	height: 150px;
+}
+
+.piano-kbd {
+	height: 100%;
+	padding: 1%;
+	flex-flow: column;
+	display: flex;
+	flex: 4;
+}
+
+.piano-keys {
+	height: 100%;
+	display: flex;
+	flex: 8;
+	justify-content: center;
+}
+
+.piano-key {
+	flex: 1;
+	display: inline-flex;
+	align-items: center;
+	margin-left: 2px;
+	margin-right: 2px;
+	border-radius: 0 0 4px 4px;
+	cursor: pointer;
+}
+
+.black {
+	justify-content: center;
+	position: relative;
+	height: 50%;
+	background-color: #eee;
+	color: #eee;
+	width: 9%;
+	margin-left: calc(-4.5% + 2px);
+	margin-right: calc(-4.5% + 2px);
+}
+
+.white {
+	flex-flow: column;
+	justify-content: flex-end;
+	color: #333;
+	background-color: #666;
+}
+
+.black.active, .white.active {
+	background-color: #222;
+}
+
+.btn {
+	display: inline-block;
+	background-color: black;
+	color: white;
+	margin: 1em;
+	padding: 1em;
+	cursor: pointer;
+	border-radius: 4px;
+	transition: background-color 0.25s;
+}
+.btn:hover {
+	background-color: #333;
+}
+.btn:active, .btn.active {
+	background-color: red;
+	transition: background-color 0s;
+}
