@@ -1,9 +1,9 @@
 #include <jni.h>
 #include <pthread.h>
 
-#include "m.h"
+#include <scherzo.h>
+
 #include "opensles.h"
-#include "scherzo.h"
 
 struct scherzo_context {
     pthread_mutex_t lock;
@@ -29,7 +29,8 @@ static void scherzo_play_cb(SLAndroidSimpleBufferQueueItf q, void *p) {
 }
 
 JNIEXPORT jlong JNICALL Java_com_naivesound_scherzo_Scherzo_create(
-    JNIEnv *env, jobject instance, jint sample_rate, jint num_frames, jint max_poly) {
+    JNIEnv *env, jobject instance, jint sample_rate, jint num_frames,
+    jint max_poly) {
     struct scherzo_context *context = malloc(sizeof(struct scherzo_context));
     OPENSLES_LOGD("scherzo create %d %d %d", sample_rate, num_frames, max_poly);
     if (context == NULL) {

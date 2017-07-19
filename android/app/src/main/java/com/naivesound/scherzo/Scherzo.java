@@ -1,7 +1,7 @@
 package com.naivesound.scherzo;
 
 public class Scherzo {
-    static { System.loadLibrary("scherzo-lib"); }
+    static { System.loadLibrary("scherzo-jni"); }
 
     private long mRef;
 
@@ -25,7 +25,8 @@ public class Scherzo {
     public void midi(byte msg, byte a, byte b) {
         midi(mRef, msg & 0xff, a & 0xff, b & 0xff);
     }
-    private native long create(int sampleRate, int framesPerBuffer, int maxPoly);
+    private native long create(int sampleRate, int framesPerBuffer,
+                               int maxPoly);
     private native void destroy(long ref);
     private native void midi(long ref, int msg, int a, int b);
 }

@@ -1,9 +1,7 @@
-cmake_minimum_required(VERSION 3.4.1)
-include_directories(src/main/cpp/fluidsynth)
-add_library(scherzo-lib SHARED
-             src/main/cpp/scherzo.c
-             src/main/cpp/scherzo-lib.c)
+cmake_minimum_required(VERSION 3.2)
 
-find_library(log-lib log)
-find_library(opensles-lib OpenSLES)
-target_link_libraries(scherzo-lib ${log-lib} ${opensles-lib})
+add_subdirectory(../../core ${CMAKE_CURRENT_BINARY_DIR}/libscherzo_build)
+
+add_library(scherzo-jni SHARED src/main/cpp/scherzo-lib.c)
+target_include_directories(scherzo-jni PRIVATE vendor ${scherzo-core_SOURCE_DIR})
+target_link_libraries(scherzo-jni libscherzo log OpenSLES)
