@@ -1,5 +1,3 @@
-#include <dirent.h>
-#include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -9,6 +7,9 @@
 #include "assets/m.h"
 
 #include <fluidlite.h>
+
+#define MAX_CHAN_VALUE 15
+#define MAX_MIDI_VALUE 127
 
 #define SCHERZO_BPM_MAX_TAPS 8
 #define SCHERZO_BPM_MAX_IDLE_INTERVAL 2 /* seconds */
@@ -27,9 +28,10 @@ struct scherzo {
   int sample_rate;
 
   struct {
-    int notes[256];
-    int cc[256];
+    int notes[MAX_MIDI_VALUE + 1];
+    int cc[MAX_MIDI_VALUE + 1];
     int events;
+    char *instruments[MAX_MIDI_VALUE + 1];
   } status;
 
   struct {
@@ -59,76 +61,6 @@ struct scherzo {
   } fluid;
 };
 
-static int scherzo_sort(const struct dirent **a, const struct dirent **b) {
-  return -strcoll((*a)->d_name, (*b)->d_name);
-}
-
-static int scherzo_scandir(const char *dir, struct dirent ***namelist,
-			   int (*select)(const struct dirent *),
-			   int (*compar)(const struct dirent **,
-					 const struct dirent **)) {
-  DIR *dirp;
-  struct dirent *ent, *etmp, **nl = NULL, **ntmp;
-  int count = 0;
-  int allocated = 0;
-
-  if (!(dirp = opendir(dir)))
-    return -1;
-
-  int prior_errno = errno;
-  errno = 0;
-
-  while ((ent = readdir(dirp))) {
-    if (!select || select(ent)) {
-
-      /* Ignore error from readdir/select. See POSIX specs. */
-      errno = 0;
-
-      if (count == allocated) {
-
-	if (allocated == 0)
-	  allocated = 10;
-	else
-	  allocated *= 2;
-
-	ntmp = (struct dirent **)realloc(nl, allocated * sizeof *nl);
-	if (!ntmp) {
-	  errno = ENOMEM;
-	  break;
-	}
-	nl = ntmp;
-      }
-
-      if (!(etmp = (struct dirent *)malloc(sizeof *ent))) {
-	errno = ENOMEM;
-	break;
-      }
-      *etmp = *ent;
-      nl[count++] = etmp;
-    }
-  }
-
-  if ((prior_errno = errno) != 0) {
-    closedir(dirp);
-    if (nl) {
-      while (count > 0)
-	free(nl[--count]);
-      free(nl);
-    }
-    /* Ignore errors from closedir() and what not else. */
-    errno = prior_errno;
-    return -1;
-  }
-
-  closedir(dirp);
-  errno = prior_errno;
-
-  qsort(nl, count, sizeof *nl, (int (*)(const void *, const void *))compar);
-  if (namelist)
-    *namelist = nl;
-  return count;
-}
-
 scherzo_t *scherzo_create(int sample_rate, int max_polyphony) {
   scherzo_t *scherzo = (scherzo_t *)malloc(sizeof(*scherzo));
   if (scherzo == NULL) {
@@ -136,8 +68,11 @@ scherzo_t *scherzo_create(int sample_rate, int max_polyphony) {
   }
   scherzo->sample_rate = sample_rate;
 
-  memset(scherzo->status.notes, 0, sizeof(scherzo->status.notes));
-  memset(scherzo->status.cc, 0, sizeof(scherzo->status.cc));
+  for (int i = 0; i < MAX_MIDI_VALUE; i++) {
+    scherzo->status.notes[i] = 0;
+    scherzo->status.cc[i] = 0;
+    scherzo->status.instruments[i] = NULL;
+  }
   scherzo->status.events = 0;
 
   scherzo->metronome.bpm = 0;
@@ -178,49 +113,36 @@ scherzo_t *scherzo_create(int sample_rate, int max_polyphony) {
   return scherzo;
 }
 
-int scherzo_load_instrument(scherzo_t *scherzo, const char *dir, int index) {
-  /*for (int chan = 0; chan < 16; chan++) {*/
-  /*fluid_synth_all_sounds_off(scherzo->fluid.synth, chan);*/
-  /*}*/
+int scherzo_set_instrument_path(scherzo_t *scherzo, int index,
+				const char *path) {
+  if (index < 0 || index > MAX_MIDI_VALUE) {
+    return -1;
+  }
+  free(scherzo->status.instruments[index]);
+  scherzo->status.instruments[index] = NULL;
+  if (path != NULL) {
+    scherzo->status.instruments[index] = malloc(strlen(path) + 1);
+    strcpy(scherzo->status.instruments[index], path);
+  }
+  return 0;
+}
+
+int scherzo_load_instrument(scherzo_t *scherzo, int index) {
   if (scherzo->fluid.font > 0) {
-    printf("before unload\n");
     fluid_synth_sfunload(scherzo->fluid.synth, scherzo->fluid.font, 0);
-    printf("after unload\n");
     scherzo->fluid.font = -1;
   }
-  if (index >= 0) {
-    int r;
-    struct dirent **entries;
-    r = scherzo_scandir(dir, &entries, 0, scherzo_sort);
-    if (r < 0) {
-      printf("scandir: %d, %d\n", r, errno);
-      return -1;
-    }
-    for (; r > 0; r--) {
-      if (strcmp(entries[r - 1]->d_name, ".") == 0 ||
-	  strcmp(entries[r - 1]->d_name, "..") == 0) {
-	free(entries[r - 1]);
-	continue;
-      }
-      if (index == 0) {
-	char path[4096];
-	snprintf(path, sizeof(path) - 1, "%s/%s", dir, entries[r - 1]->d_name);
-	printf("loading sf2 at %s\n", path);
-	printf("before load\n");
-	scherzo->fluid.font = fluid_synth_sfload(scherzo->fluid.synth, path, 1);
-	printf("after load\n");
-      }
-      free(entries[r - 1]);
-      index--;
-    }
-    free(entries);
+  if (index < 0 || index > MAX_MIDI_VALUE) {
+    return -1;
   }
+  scherzo->fluid.font = fluid_synth_sfload(
+      scherzo->fluid.synth, scherzo->status.instruments[index], 1);
   return scherzo->fluid.font;
 }
 
 void scherzo_destroy(scherzo_t *scherzo) {
   if (scherzo != NULL) {
-    scherzo_load_instrument(scherzo, NULL, -1);
+    scherzo_load_instrument(scherzo, -1);
     if (scherzo->fluid.synth != NULL) {
       delete_fluid_synth(scherzo->fluid.synth);
       scherzo->fluid.synth = NULL;
@@ -345,6 +267,10 @@ static int scherzo_tap(scherzo_t *scherzo) {
 }
 
 void scherzo_note_on(scherzo_t *scherzo, int chan, int key, int velocity) {
+  if (chan < 0 || chan > MAX_CHAN_VALUE || key < 0 || key > MAX_MIDI_VALUE ||
+      velocity < 0 || velocity > MAX_MIDI_VALUE) {
+    return;
+  }
   scherzo->status.notes[key] = velocity;
   scherzo->status.events |= SCHERZO_EVENT_NOTE;
   if (scherzo->fluid.synth != NULL) {
@@ -353,6 +279,9 @@ void scherzo_note_on(scherzo_t *scherzo, int chan, int key, int velocity) {
 }
 
 void scherzo_note_off(scherzo_t *scherzo, int chan, int key) {
+  if (chan < 0 || chan > MAX_CHAN_VALUE || key < 0 || key > MAX_MIDI_VALUE) {
+    return;
+  }
   scherzo->status.notes[key] = 0;
   scherzo->status.events |= SCHERZO_EVENT_NOTE;
   if (scherzo->fluid.synth != NULL) {
@@ -361,6 +290,9 @@ void scherzo_note_off(scherzo_t *scherzo, int chan, int key) {
 }
 
 void scherzo_pitch_bend(scherzo_t *scherzo, int chan, int bend) {
+  if (chan < 0 || chan > MAX_CHAN_VALUE) {
+    return;
+  }
   if (scherzo->fluid.synth != NULL) {
     fluid_synth_pitch_bend(scherzo->fluid.synth, chan, bend);
   }
@@ -436,10 +368,16 @@ int scherzo_midi(scherzo_t *scherzo, int msg, int a, int b) {
 }
 
 int scherzo_get_note(scherzo_t *scherzo, int note) {
+  if (note < 0 || note > MAX_MIDI_VALUE) {
+    return 0;
+  }
   return scherzo->status.notes[note];
 }
 
 int scherzo_get_cc(scherzo_t *scherzo, int cc) {
+  if (cc < 0 || cc > MAX_MIDI_VALUE) {
+    return 0;
+  }
   return scherzo->status.cc[cc];
 }
 

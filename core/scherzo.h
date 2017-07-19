@@ -52,7 +52,9 @@ int scherzo_midi(scherzo_t *scherzo, int msg, int a, int b);
 int scherzo_get_note(scherzo_t *scherzo_t, int note);
 int scherzo_get_cc(scherzo_t *scherzo_t, int cc);
 
-int scherzo_load_instrument(scherzo_t *scherzo, const char *dir, int index);
+int scherzo_set_instrument_path(scherzo_t *scherzo, int index,
+				const char *path);
+int scherzo_load_instrument(scherzo_t *scherzo, int index);
 
 #ifdef __cplusplus
 }

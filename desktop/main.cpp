@@ -1,10 +1,14 @@
 #include <atomic>
 #include <chrono>
+#include <cstring>
 #include <map>
 #include <string>
 #include <thread>
 #include <utility>
 #include <vector>
+
+#include <dirent.h>
+#include <errno.h>
 
 #include <RtAudio.h>
 #include <RtMidi.h>
@@ -45,6 +49,100 @@ static int getch() {
 
 #define KNOB(x) ((x) < 64 ? -1 : 1)
 
+static int scherzo_sort(const struct dirent **a, const struct dirent **b) {
+  return -strcoll((*a)->d_name, (*b)->d_name);
+}
+
+static int scherzo_scandir(const char *dir, struct dirent ***namelist,
+			   int (*select)(const struct dirent *),
+			   int (*compar)(const struct dirent **,
+					 const struct dirent **)) {
+  DIR *dirp;
+  struct dirent *ent, *etmp, **nl = NULL, **ntmp;
+  int count = 0;
+  int allocated = 0;
+
+  if (!(dirp = opendir(dir)))
+    return -1;
+
+  int prior_errno = errno;
+  errno = 0;
+
+  while ((ent = readdir(dirp))) {
+    if (!select || select(ent)) {
+
+      /* Ignore error from readdir/select. See POSIX specs. */
+      errno = 0;
+
+      if (count == allocated) {
+
+	if (allocated == 0)
+	  allocated = 10;
+	else
+	  allocated *= 2;
+
+	ntmp = (struct dirent **)realloc(nl, allocated * sizeof *nl);
+	if (!ntmp) {
+	  errno = ENOMEM;
+	  break;
+	}
+	nl = ntmp;
+      }
+
+      if (!(etmp = (struct dirent *)malloc(sizeof *ent))) {
+	errno = ENOMEM;
+	break;
+      }
+      *etmp = *ent;
+      nl[count++] = etmp;
+    }
+  }
+
+  if ((prior_errno = errno) != 0) {
+    closedir(dirp);
+    if (nl) {
+      while (count > 0)
+	free(nl[--count]);
+      free(nl);
+    }
+    /* Ignore errors from closedir() and what not else. */
+    errno = prior_errno;
+    return -1;
+  }
+
+  closedir(dirp);
+  errno = prior_errno;
+
+  qsort(nl, count, sizeof *nl, (int (*)(const void *, const void *))compar);
+  if (namelist)
+    *namelist = nl;
+  return count;
+}
+
+static int load_instruments(scherzo_t *scherzo, const char *dir) {
+  int r;
+  struct dirent **entries;
+  r = scherzo_scandir(dir, &entries, 0, scherzo_sort);
+  if (r < 0) {
+    printf("scandir: %d, %d\n", r, errno);
+    return -1;
+  }
+  int i = 0;
+  for (; r > 0; r--) {
+    if (strcmp(entries[r - 1]->d_name, ".") == 0 ||
+	strcmp(entries[r - 1]->d_name, "..") == 0) {
+      free(entries[r - 1]);
+      continue;
+    }
+    char path[4096];
+    snprintf(path, sizeof(path) - 1, "%s/%s", dir, entries[r - 1]->d_name);
+    scherzo_set_instrument_path(scherzo, i, path);
+    i++;
+    free(entries[r - 1]);
+  }
+  free(entries);
+}
+
 int audioCallback(void *out, void *in, unsigned int frames, double time,
 		  RtAudioStreamStatus status, void *arg) {
   (void)in;
@@ -54,12 +152,53 @@ int audioCallback(void *out, void *in, unsigned int frames, double time,
   scherzo_t *scherzo = static_cast<scherzo_t *>(arg);
   int16_t *buf = static_cast<int16_t *>(out);
 
-  int events = scherzo_write_stereo(scherzo, buf, frames);
-  if (events & SCHERZO_EVENT_BEAT) {
-    printf("tick\n");
+  static int events;
+  static int notes_buf[129];
+  static int every = 4;
+  static int counter = 0;
+
+  int e = scherzo_write_stereo(scherzo, buf, frames);
+  events = events | e;
+
+  if (counter == 0) {
+    for (int i = 0; i < 128; i++) {
+      notes_buf[i] = 0;
+    }
   }
-  if (events & SCHERZO_EVENT_LOOP) {
-    printf("loop\n");
+
+  for (int i = 0; i < 128; i++) {
+    int vol = scherzo_get_note(scherzo, i);
+    if (vol > 0) {
+      notes_buf[i] = vol;
+    }
+  }
+  if (counter++ == every) {
+    char *fill = " ";
+    if (events & SCHERZO_EVENT_LOOP) {
+      fill = "\x1b[31m=";
+    }
+    if (events & SCHERZO_EVENT_BEAT) {
+      fill = "\x1b[31m.";
+    }
+    for (int i = 20; i < 128 - 20; i++) {
+      char *vol = "█";
+      if (notes_buf[i] == 0) {
+	vol = fill;
+      }
+      char *color = "\x1b[37m";
+      int note = i % 12;
+      if (note == 0) {
+	// printf("\x1b[31m·");
+	printf("\x1b[31m.");
+      }
+      if (note == 1 || note == 3 || note == 6 || note == 8 || note == 10) {
+	color = "\x1b[31m";
+      }
+      printf("%s%s", color, vol);
+    }
+    printf("\x1b[0m\n");
+    counter = 0;
+    events = 0;
   }
   return 0;
 }
@@ -168,24 +307,26 @@ int main(int argc, char *argv[]) {
 		   &audioCallback, scherzo, &options);
   audio.startStream();
 
-  int bank = 0;
-  scherzo_load_instrument(scherzo, sf2dir(), bank);
+  int program = 0;
+  load_instruments(scherzo, sf2dir());
+  scherzo_load_instrument(scherzo, program);
+
   scherzo_midi(scherzo, MIDI_MSG_CC, MIDI_CC_VOL, 80);
   while (!should_exit) {
     int c = getch();
     switch (c) {
     case ',':
-      bank = bank - 1;
-      if (bank < 0) {
-	bank = 0;
+      program = program - 1;
+      if (program < 0) {
+	program = 0;
       }
-      scherzo_load_instrument(scherzo, sf2dir(), bank);
-      printf("bank: %d\n", bank);
+      scherzo_load_instrument(scherzo, program);
+      printf("instrument program: %d\n", program);
       break;
     case '.':
-      bank = bank + 1;
-      scherzo_load_instrument(scherzo, sf2dir(), bank);
-      printf("bank: %d\n", bank);
+      program = program + 1;
+      scherzo_load_instrument(scherzo, program);
+      printf("instrument program: %d\n", program);
       break;
     case 'v':
       SCHERZO_INCR(scherzo, MIDI_CC_VOL, -1);
@@ -227,6 +368,7 @@ int main(int argc, char *argv[]) {
       should_exit = true;
       break;
     }
+#if 0
     printf("V:%03d | M:%03d | L:%03d D:%03d | R:%03d C:%03d\n",
 	   scherzo_get_cc(scherzo, MIDI_CC_VOL),
 	   scherzo_get_cc(scherzo, MIDI_CC_METRONOME_GAIN),
@@ -234,6 +376,7 @@ int main(int argc, char *argv[]) {
 	   scherzo_get_cc(scherzo, MIDI_CC_LOOPER_DECAY),
 	   scherzo_get_cc(scherzo, MIDI_CC_REVERB),
 	   scherzo_get_cc(scherzo, MIDI_CC_CHORUS));
+#endif
   }
 
   midi_poller.join();
