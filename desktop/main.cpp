@@ -32,7 +32,7 @@ static int getch() {
 #include <conio.h>
 #endif
 
-#include "scherzo.h"
+#include <scherzo.h>
 
 #define SAMPLE_RATE 44100
 

@@ -5,7 +5,6 @@
 extern "C" {
 #endif
 
-#include <fluidlite.h>
 #include <stdint.h>
 
 #define MIDI_MSG_NOTE_ON 0x90

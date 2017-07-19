@@ -31,6 +31,10 @@
 #include <stdlib.h>
 #endif
 
+#if HAVE_STDINT_H
+#include <stdint.h>
+#endif
+
 #if HAVE_STDIO_H
 #include <stdio.h>
 #endif

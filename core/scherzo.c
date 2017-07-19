@@ -1,29 +1,14 @@
 #include <dirent.h>
 #include <errno.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
 #include "scherzo.h"
 
-#include "m.h"
+#include "assets/m.h"
 
 #include <fluidlite.h>
-
-#include <fluid_chan.c>
-#include <fluid_chorus.c>
-#include <fluid_conv.c>
-#include <fluid_defsfont.c>
-#include <fluid_dsp_float.c>
-#include <fluid_gen.c>
-#include <fluid_hash.c>
-#include <fluid_list.c>
-#include <fluid_mod.c>
-#include <fluid_rev.c>
-#include <fluid_settings.c>
-#include <fluid_synth.c>
-#include <fluid_sys.c>
-#include <fluid_tuning.c>
-#include <fluid_voice.c>
 
 #define SCHERZO_BPM_MAX_TAPS 8
 #define SCHERZO_BPM_MAX_IDLE_INTERVAL 2 /* seconds */
@@ -194,12 +179,12 @@ scherzo_t *scherzo_create(int sample_rate, int max_polyphony) {
 }
 
 int scherzo_load_instrument(scherzo_t *scherzo, const char *dir, int index) {
-  for (int chan = 0; chan < 16; chan++) {
-    fluid_synth_all_sounds_off(scherzo->fluid.synth, chan);
-  }
+  /*for (int chan = 0; chan < 16; chan++) {*/
+  /*fluid_synth_all_sounds_off(scherzo->fluid.synth, chan);*/
+  /*}*/
   if (scherzo->fluid.font > 0) {
     printf("before unload\n");
-    fluid_synth_sfunload(scherzo->fluid.synth, scherzo->fluid.font, 1);
+    fluid_synth_sfunload(scherzo->fluid.synth, scherzo->fluid.font, 0);
     printf("after unload\n");
     scherzo->fluid.font = -1;
   }
