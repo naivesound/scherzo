@@ -12,9 +12,6 @@ matrix:
           packages:
             - libasound2-dev
       compiler: gcc
-      env:
-        - FLAGS=alsa=1
-        - SCHERZO_BIN=scherzo-linux
 
     # Cross-platform windows compilation
     - os: linux
@@ -28,19 +25,13 @@ matrix:
       before_script:
         - export PATH=/usr/lib/mxe/usr/bin:$PATH
       env:
-        - CROSS_CC=CC=i686-w64-mingw32.static-gcc
-        - CROSS_CXX=CXX=i686-w64-mingw32.static-g++
-        - FLAGS=windows=1
-        - SCHERZO_BIN=scherzo-windows.exe
+        - CROSS_PREFIX=i686-w64-mingw32.static-
 
     # Native MacOS compilation
     - os: osx
-      env:
-        - FLAGS=macos=1
-        - SCHERZO_BIN=scherzo-macos
 
 script:
-  - make $FLAGS $CROSS_CC $CROSS_CXX && ls -l
+  - mkdir build && cd build && ${CROSS_PREFIX}cmake && make && ls -l
 
 deploy:
   provider: releases
