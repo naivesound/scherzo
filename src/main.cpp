@@ -213,13 +213,14 @@ int main(int argc, char *argv[]) {
       printf("looper decay: %d\n",
 	     scherzo_get_cc(scherzo, MIDI_CC_LOOPER_DECAY));
       break;
-    case 'b':
+    case ' ':
       scherzo_midi(scherzo, MIDI_MSG_CC, MIDI_CC_TAP, 1);
       break;
-    case 'n':
+    case '\n':
       scherzo_midi(scherzo, MIDI_MSG_CC, MIDI_CC_LOOP, 1);
       break;
-    case 'N':
+    case '\b': // BS or DEL
+    case 127:
       scherzo_midi(scherzo, MIDI_MSG_CC, MIDI_CC_CANCEL, 1);
       break;
     case 'q':
