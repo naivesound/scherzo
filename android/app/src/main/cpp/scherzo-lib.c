@@ -46,7 +46,8 @@ JNIEXPORT jlong JNICALL Java_com_naivesound_scherzo_Scherzo_create(
     if (context->scherzo == NULL) {
         return 0;
     }
-    scherzo_load_instrument(context->scherzo, SF2DIR, 0);
+    scherzo_set_instrument_path(context->scherzo, 0, SF2DIR "/font.sf2");
+    scherzo_load_instrument(context->scherzo, 0);
     scherzo_midi(context->scherzo, MIDI_MSG_CC, MIDI_CC_VOL, 80);
 
     if (sample_rate == 48000) {
