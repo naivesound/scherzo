@@ -1,10 +1,10 @@
 package com.naivesound.scherzo
 
-class Scherzo(sampleRate: Int, framesPerBuffer: Int, maxPoly: Int) {
+class Scherzo(sampleRate: Int, framesPerBuffer: Int, maxPoly: Int, cb: (Int)->Unit) {
 
     private var mRef: Long = 0
 
-    init { mRef = create(sampleRate, framesPerBuffer, maxPoly) }
+    init { mRef = create(sampleRate, framesPerBuffer, maxPoly, cb) }
 
     fun dispose() {
         destroy(mRef)
@@ -19,7 +19,7 @@ class Scherzo(sampleRate: Int, framesPerBuffer: Int, maxPoly: Int) {
     fun cancelLoop() { midi(mRef, 0xb0, 0x52, 1) }
     fun midi(msg: Int, a: Int, b: Int) { midi(mRef, msg and 0xff, a and 0xff, b and 0xff) }
 
-    private external fun create(sampleRate: Int, framesPerBuffer: Int, maxPoly: Int): Long
+    private external fun create(sampleRate: Int, framesPerBuffer: Int, maxPoly: Int, cb: (Int)->Unit): Long
     private external fun destroy(ref: Long)
     private external fun midi(ref: Long, msg: Int, a: Int, b: Int)
 

@@ -24,7 +24,9 @@ class ScherzoService : Service() {
         val am = getSystemService(Context.AUDIO_SERVICE) as AudioManager
         val sampleRate = Integer.parseInt(am.getProperty(AudioManager.PROPERTY_OUTPUT_SAMPLE_RATE))
         val framesPerBuffer = Integer.parseInt(am.getProperty(AudioManager.PROPERTY_OUTPUT_FRAMES_PER_BUFFER))
-        mScherzo = Scherzo(sampleRate, framesPerBuffer, 32)
+        mScherzo = Scherzo(sampleRate, framesPerBuffer, 32) { events ->
+            println("events: " + events);
+        }
         return super.onStartCommand(intent, flags, startId)
     }
 
